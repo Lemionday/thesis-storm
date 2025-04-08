@@ -14,6 +14,7 @@ services:
     volumes:
       - ./config/hosts:/etc/hosts:ro
       - ./config/storm.yml:/conf/storm.yaml
+      - ./stormsmarthome/target/:/topologies/:ro
     depends_on: [zookeeper]
     links: [zookeeper]
     ports: [6627:6627]
