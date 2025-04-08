@@ -1,0 +1,4 @@
+---
+storm.zookeeper.servers: [zookeeper]
+nimbus.seeds: [nimbus]
+ui.port: 8081
