@@ -38,8 +38,10 @@ services:
       - ./config/hosts:/etc/hosts:ro
       - ./config/storm.yml:/conf/storm.yaml
     deploy:
-      replicas: 4
       resources:
         limits:
           memory: 1G
           cpus: 1
+
+include:
+  - path: ./storm-exporter/docker-compose.yml

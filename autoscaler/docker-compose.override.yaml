@@ -1,0 +1,4 @@
+services:
+    storm-supervisor:
+        deploy:
+            replicas: 1

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -21,7 +22,6 @@ type config struct {
 var conf config
 
 func main() {
-	// flag.Parse()
 	conf.addr = os.Getenv("EXPORTER_LISTEN_ADDR")
 	if conf.addr == "" {
 		conf.addr = ":8080"
@@ -44,32 +44,32 @@ func main() {
 		}
 	}
 
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
 	// Create a non-global registry
 	reg := prometheus.NewRegistry()
 
-	clusterMetric := NewClusterMetrics(reg)
-	go func() {
-		for {
-			collectClusterMetrics(clusterMetric, conf.stormUIHost)
-			log.Println("Updated cluster's metrics")
-			time.Sleep(time.Duration(refreshRate * int64(time.Second)))
-		}
-	}()
+	ticker := time.NewTicker(time.Duration(refreshRate) * time.Second)
+	defer ticker.Stop()
 
+	clusterMetric := NewClusterMetrics(reg)
 	topologyMetrics := NewTopologyMetrics(reg)
 	spoutMetrics := NewSpoutMetrics(reg)
 	boltMetrics := NewBoltMetrics(reg)
 	go func() {
 		for {
-			func() {
+			select {
+			case <-ticker.C:
+				collectClusterMetrics(clusterMetric, conf.stormUIHost, logger)
+
 				topologies, err := FetchAndDecode[struct {
 					Topologies []topologySummary `json:"topologies,omitempty"`
 				}](
 					fmt.Sprintf("http://%s/api/v1/topology/summary", conf.stormUIHost),
 				)
 				if err != nil {
-					log.Println(err)
-					return
+					logger.Error(err.Error())
+					continue
 				}
 
 				for _, topo := range topologies.Topologies {
@@ -86,19 +86,20 @@ func main() {
 						),
 					)
 					if err != nil {
-						log.Println(err)
-						return
+						logger.Error(err.Error())
+						continue
 					}
 					collectSpoutMetrics(spoutMetrics, data.Spouts, topo.Name, topo.ID)
 					collectBoltMetrics(boltMetrics, data.Bolts, topo.Name, topo.ID)
 				}
-			}()
 
-			log.Println("Updated topologies's metrics")
-			time.Sleep(time.Duration(refreshRate * int64(time.Second)))
+				logger.Info("Updated topologies's metrics")
+			}
 		}
 	}()
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
+
+	log.Println("Listening on", conf.addr)
 	log.Fatal(http.ListenAndServe(conf.addr, nil))
 }

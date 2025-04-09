@@ -8,6 +8,7 @@ services:
     environment:
       - STORM_UI_HOST=${STORM_UI_HOST}:${STORM_UI_PORT}  # default localhost:8081
       - REFRESH_INTERVAL=${STORM_EXPORTER_REFRESH_INTERVAL}  # default 5
+      - EXPORTER_LISTEN_ADDR=:${STORM_EXPORTER_PORT}
     ports: ['${STORM_EXPORTER_PORT}:${STORM_EXPORTER_PORT}']
 
   prometheus:

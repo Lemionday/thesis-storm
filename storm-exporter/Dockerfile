@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /storm-exporter
 # Deploy the application binary into a lean image
 FROM gcr.io/distroless/base-debian11 AS build-release-stage
 
-ENV STORM_UI_HOST=localhost:8081
+ENV STORM_UI_HOST=localhost:8080
 
 WORKDIR /
 
