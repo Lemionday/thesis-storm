@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,40 +21,35 @@ type config struct {
 	refreshRate int64
 }
 
-var conf config
+const (
+	containerNamePrefix = "storm-supervisor"
+)
 
 func main() {
-	conf.addr = os.Getenv("EXPORTER_LISTEN_ADDR")
-	if conf.addr == "" {
-		conf.addr = ":8080"
-	}
-
-	conf.stormUIHost = os.Getenv("STORM_UI_HOST")
-	if conf.stormUIHost == "" {
-		conf.stormUIHost = "localhost:8081"
-	}
-
-	refreshRateStr := os.Getenv("REFRESH_RATE")
-	var refreshRate int64
-	if refreshRateStr == "" {
-		refreshRate = 5
-	} else {
-		var err error
-		refreshRate, err = strconv.ParseInt(refreshRateStr, 10, 64)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	conf := loadConfig()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	// Create a non-global registry
-	reg := prometheus.NewRegistry()
-
-	ticker := time.NewTicker(time.Duration(refreshRate) * time.Second)
+	ticker := time.NewTicker(time.Duration(conf.refreshRate) * time.Second)
 	defer ticker.Stop()
 
+	ctx := context.Background()
+	mutex := &sync.Mutex{}
+
+	dockerMonitor, err := NewDockerMonitor(containerNamePrefix, mutex, logger)
+	if err != nil {
+		log.Fatalf("Failed to initialize Docker monitor: %v", err)
+	}
+	defer dockerMonitor.Close()
+
+	dockerMonitor.GetContainerStats(ctx)
+
+	// var wg sync.WaitGroup
+	//
+	// Create a non-global registry
+	reg := prometheus.NewRegistry()
 	clusterMetric := NewClusterMetrics(reg)
+	supervisorMetrics := NewSupervisorMetrics(reg)
 	topologyMetrics := NewTopologyMetrics(reg)
 	spoutMetrics := NewSpoutMetrics(reg)
 	boltMetrics := NewBoltMetrics(reg)
@@ -60,7 +57,9 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				collectClusterMetrics(clusterMetric, conf.stormUIHost, logger)
+				go collectClusterMetrics(clusterMetric, conf.stormUIHost, logger)
+
+				go collectSupervisorMetrics(supervisorMetrics, dockerMonitor)
 
 				topologies, err := FetchAndDecode[struct {
 					Topologies []topologySummary `json:"topologies,omitempty"`
@@ -80,7 +79,7 @@ func main() {
 						Bolts  []boltSummary  `json:"bolts"`
 					}](
 						fmt.Sprintf(
-							"http://%s/api/v1/topology/%s?windowSize=5",
+							"http://%s/api/v1/topology/%s?window=600",
 							conf.stormUIHost,
 							topo.ID,
 						),
@@ -102,4 +101,30 @@ func main() {
 
 	log.Println("Listening on", conf.addr)
 	log.Fatal(http.ListenAndServe(conf.addr, nil))
+}
+
+func loadConfig() *config {
+	var conf config
+	conf.addr = os.Getenv("EXPORTER_LISTEN_ADDR")
+	if conf.addr == "" {
+		conf.addr = ":8080"
+	}
+
+	conf.stormUIHost = os.Getenv("STORM_UI_HOST")
+	if conf.stormUIHost == "" {
+		conf.stormUIHost = "localhost:8081"
+	}
+
+	refreshRateStr := os.Getenv("REFRESH_RATE")
+	if refreshRateStr == "" {
+		conf.refreshRate = 5
+	} else {
+		var err error
+		conf.refreshRate, err = strconv.ParseInt(refreshRateStr, 10, 64)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return &conf
 }
