@@ -2,3 +2,5 @@
 storm.zookeeper.servers: [zookeeper]
 nimbus.seeds: [nimbus]
 ui.port: 8081
+
+worker.childopts: -Xms128m -Xmx192m
