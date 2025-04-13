@@ -24,6 +24,8 @@ COPY --from=build-stage /storm-exporter /storm-exporter
 
 EXPOSE 8080
 
+# USER root
+
 USER nonroot:nonroot
 
 ENTRYPOINT ["/storm-exporter"]

@@ -1,5 +1,0 @@
----
-# environment.yml
-name: dev
-channels: [conda-forge]
-dependencies: [python=3.12, 'gymnasium[all]', numpy, pandas, flask]
