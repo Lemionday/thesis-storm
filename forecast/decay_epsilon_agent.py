@@ -1,8 +1,10 @@
 import time
+from argparse import Action
 
 import numpy as np
 
-from vm_auto_scale_env import VMAutoScaleEnv
+from helpers import discretize_cpu_util
+from vm_auto_scale_env import Action, VMAutoScaleEnv
 
 NUM_EPISODES = 1000
 LEARNING_RATE = 0.1
@@ -11,6 +13,7 @@ INITIAL_EPSILON = 1.0
 EPSILON_DECAY_RATE = 0.001
 MIN_EPSILON = 0.01
 NUM_STATE_BINS = 10
+MAX_VMS = 5
 
 
 # --- Q-Learning Agent Class ---
@@ -25,6 +28,7 @@ class QLearningAgent:
         epsilon_decay_rate=EPSILON_DECAY_RATE,
         min_epsilon=MIN_EPSILON,
         num_state_bins=NUM_STATE_BINS,
+        max_vms=MAX_VMS,
     ):
         self.observation_space = observation_space
         self.action_space = action_space
@@ -34,15 +38,8 @@ class QLearningAgent:
         self.epsilon_decay_rate = epsilon_decay_rate
         self.min_epsilon = min_epsilon
         self.num_state_bins = num_state_bins
-        self.q_table = np.zeros((num_state_bins, action_space.n))
+        self.q_table = np.zeros(((num_state_bins, max_vms), action_space.n))
         self.rng = np.random.default_rng()
-
-    def discretize_state(self, observation):
-        """Discretizes the continuous CPU utilization state."""
-        low = self.observation_space.low[0]
-        high = self.observation_space.high[0]
-        normalized_state = (observation[0] - low) / (high - low)
-        return int(np.floor(normalized_state * self.num_state_bins))
 
     def select_action(self, state):
         if self.rng.random() < self.epsilon:
@@ -71,29 +68,33 @@ class QLearningAgent:
 
 
 # --- Training Function ---
-def train_agent(env, agent, num_episodes=NUM_EPISODES):
+def train_agent(env: VMAutoScaleEnv, agent: QLearningAgent, num_episodes=NUM_EPISODES):
     for episode in range(num_episodes):
         observation, _ = env.reset()
-        state = agent.discretize_state(observation)
+        state = (discretize_cpu_util(observation), 1)
+        pre_state = (discretize_cpu_util(observation), 1)
+        pre_action = Action.DO_NOTHING
         terminated = False
+        truncated = False
         total_reward = 0
 
-        while not terminated:
+        while not terminated and not truncated:
             action = agent.select_action(state)
-            new_observation, reward, terminated, truncated, info = env.step(action)
-            next_state = agent.discretize_state(new_observation)
+            obs, reward, terminated, truncated, info = env.step(action)
 
-            agent.update_q_table(state, action, reward, next_state)
+            agent.update_q_table(pre_state, pre_action, reward, state)
 
-            state = next_state
+            pre_action = action
+            pre_state = state
+            state = agent.discretize_state(obs)
             total_reward += reward
 
             # env.render() # Uncomment to see the environment evolve
 
-        agent.decay_epsilon()
-        print(
-            f"Episode {episode + 1}: Total Reward = {total_reward}, Epsilon = {agent.epsilon:.2f}, Final VMs = {info['num_vms']}"
-        )
+            agent.decay_epsilon()
+            print(
+                f"Episode {episode + 1}: Total Reward = {total_reward}, Epsilon = {agent.epsilon:.2f}, Final VMs = {info['num_vms']}"
+            )
 
     return agent
 
