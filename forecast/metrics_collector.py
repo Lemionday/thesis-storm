@@ -1,6 +1,7 @@
 import numpy as np
 from prometheus_api_client import PrometheusConnect
 
+
 PROMETHEUS_URL = "http://localhost:9090"
 
 
@@ -41,9 +42,9 @@ class MetricsCollector:
     def get_mem_percent(self):
         query = "storm_supervisor_memory_percent"
         results = self.prom.custom_query(query=query)
-        cpu_utilizations = np.array(
+        memory_percents = np.array(
             [record["value"][1] for record in results],
             dtype=np.float32,
         )
 
-        return cpu_utilizations
+        return memory_percents

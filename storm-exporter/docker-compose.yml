@@ -48,7 +48,7 @@ services:
       - EXPORTER_LISTEN_ADDR=:${STORM_EXPORTER_PORT}
       - DOCKER_HOST=tcp://socket-proxy:2375
     ports: ['${STORM_EXPORTER_PORT}:${STORM_EXPORTER_PORT}']
-    # volumes: [/var/run/docker.sock.raw:/var/run/docker.sock]
+    depends_on: [socket-proxy]
 
   prometheus:
     image: prom/prometheus:latest

@@ -27,7 +27,7 @@ class Autoscaler:
             print(f"Error making request to {self.url}: {e}")
             return None
 
-    def get_number_of_supervisors(self):
+    def get_number_of_containers(self):
         resp = self._make_request()
         if resp is None:
             return None
@@ -39,7 +39,7 @@ class Autoscaler:
         except ValueError:
             return None
 
-    def set_number_of_supervisors(self, replicas: int):
+    def set_number_of_containers(self, replicas: int):
         if replicas < 0 or replicas > 5:
             return None
 
@@ -64,13 +64,13 @@ if __name__ == "__main__":
 
     scaler = Autoscaler(url)
 
-    running = scaler.get_number_of_supervisors()
+    running = scaler.get_number_of_containers()
     if running is not None:
         print(f"Extracted number from text: {running}")
     else:
         print("Could not extract a number from the text response.")
 
-    running = scaler.set_number_of_supervisors(2)
+    running = scaler.set_number_of_containers(2)
     if running is not None:
         print(f"Extracted number from text: {running}")
     else:

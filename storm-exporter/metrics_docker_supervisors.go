@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -24,15 +26,6 @@ type DockerMonitor struct {
 	client *client.Client
 	logger *slog.Logger
 }
-
-// ContainerStatsData struct to hold the collected metrics for a container
-// type ContainerStatsData struct {
-// 	ContainerName string
-// 	CPUPercent    float64
-// 	MemoryPercent float64
-// 	// MemoryUsage   uint64
-// 	// MemoryLimitHits uint64
-// }
 
 // NewDockerMonitor creates a new DockerMonitor instance
 func NewDockerMonitor(logger *slog.Logger) (*DockerMonitor, error) {
@@ -74,9 +67,30 @@ func (dm *DockerMonitor) collectSupervisorMetrics(
 
 	// fmt.Printf("%+v\n", containers)
 
+	IDs := []string{}
+	var wg sync.WaitGroup
 	for _, c := range containers {
 		containerName := c.Names[0]
-		go dm.monitorContainerStats(ctx, c.ID, containerName, m)
+		supervisorID := string(containerName[len(containerName)-1])
+		IDs = append(IDs, supervisorID)
+		go dm.monitorContainerStats(ctx, c.ID, containerName, m, &wg)
+	}
+
+	for i := range 5 {
+		found := false
+		currentID := strconv.Itoa(i + 1)
+		for _, id := range IDs {
+			if currentID == id {
+				found = true
+			}
+		}
+
+		if found {
+			continue
+		}
+
+		m.CPUPercent.WithLabelValues(currentID).Set(0)
+		m.MemoryPercent.WithLabelValues(currentID).Set(0)
 	}
 }
 
@@ -84,7 +98,10 @@ func (dm *DockerMonitor) monitorContainerStats(
 	ctx context.Context,
 	containerID, containerName string,
 	m *supervisorMetrics,
+	wg *sync.WaitGroup,
 ) {
+	wg.Add(1)
+	defer wg.Done()
 	// log.Printf("Monitoring stats for container: %s (%s)\n", containerName, containerID[:12])
 
 	stats, err := dm.client.ContainerStats(ctx, containerID, false)
