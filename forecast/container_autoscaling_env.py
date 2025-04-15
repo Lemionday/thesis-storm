@@ -11,7 +11,7 @@ from metrics_collector import MetricsCollector
 
 register(
     id="container-autoscaling-v0",
-    entry_point="supervisor_autoscaling_env:ContainerAutoscalingEnv",
+    entry_point="container_autoscaling_env:ContainerAutoscalingEnv",
 )
 
 
@@ -40,12 +40,10 @@ class ContainerAutoscalingEnv(gym.Env):
         self,
         scaler: Autoscaler,
         metrics_collector: MetricsCollector,
-        initial_containers=1,
         max_containers=5,
         min_containers=1,
         max_cpu_utilization=80,
         min_cpu_utilization=20,
-        scaling_delay=1,  # Time steps before action takes effect
         reward_weights=(1.0, -1.0, -0.1),
         render_mode=None,
     ):  # Weights for (latency, cost, stability)
@@ -57,77 +55,67 @@ class ContainerAutoscalingEnv(gym.Env):
         self.action_space = gym.spaces.Discrete(len(Action))
         self.observation_space = gym.spaces.Box(
             low=np.array([0, 0, min_containers]),
-            high=np.array([100, 1000, max_containers]),
-            dtype=np.float32,
+            high=np.array([20, 20, max_containers]),
+            dtype=np.int64,
         )  # [CPU utilization, latency, num_containers]
 
         # Environment parameters
-        self.initial_containers = initial_containers
+        # self.initial_containers = initial_containers
         self.max_containers = max_containers
         self.min_containers = min_containers
         self.max_cpu_utilization = max_cpu_utilization
         self.min_cpu_utilization = min_cpu_utilization
-        self.scaling_delay = scaling_delay
+        # self.scaling_delay = scaling_delay
         self.reward_weights = reward_weights
 
         # Internal state
-        self.num_containers = initial_containers
-        self.avg_mem_percent = 50.0  # Initial CPU utilization
-        self.latency = 100.0  # Initial latency
-        self.time_counter = 0
-        self.action_history = []
-        self.state_history = []
+        # self.num_containers = initial_containers
+        # self.avg_mem_percent = 50.0  # Initial CPU utilization
+        # self.latency = 100.0  # Initial latency
+        # self.time_counter = 0
+        # self.action_history = []
+        # self.state_history = []
 
         self.metrics_collector = metrics_collector
         self.scaler = scaler
-        self.delay_buffer = deque(maxlen=scaling_delay)
+
+        self.reset()
 
     def reset(self, *, seed=None, options=None):
         """Resets the environment to the initial state."""
         super().reset(seed=seed, options=options)
-        # self.num_containers = self.initial_containers
-        # self.np_random.normal()
-        # self.avg_mem_percent = (
-        #     50.0 + self.np_random.normal() * 10
-        # )  # Initialize with some noise
-        # self.latency = 70.0 + self.np_random.normal() * 20
-        # self.time_counter = 0
-        # self.action_history = []
-        # self.state_history = []
-        # self.state = np.array(
-        #     [self.avg_mem_percent, self.latency, self.num_containers],
-        #     dtype=np.float32,
-        # )
 
-        # return self.state, {}
+        self.scaler.set_number_of_containers(1)
+        self.previous_action = Action.DO_NOTHING
+        self.time_counter = 0
 
-        return self._get_current_discretize_state()
+        return self._get_current_discretize_state(), {}
 
     def _get_current_discretize_state(self):
         avg_mem_percent = np.mean(
-            self.metrics_collector.get_mem_percent(), dtype=np.float32
+            self.metrics_collector.get_mem_percent(), dtype=np.int64
         )
         latency = 0
-        num_supervisors = self.scaler.get_number_of_supervisors()
+        num_containers = self.scaler.get_number_of_supervisors()
 
         return discretize_state(
             np.array(
-                [avg_mem_percent, latency, num_supervisors],
-                dtype=np.float32,
+                [avg_mem_percent, latency, num_containers],
+                dtype=np.int64,
             )
         )
 
     def _perform_action(self, action: Action):
-        current_supervisors = self.scaler.get_number_of_supervisors()
-        if current_supervisors is None:
-            print("Error getting current number of supervisors")
+        current_containers = self.scaler.get_number_of_supervisors()
+        if current_containers is None:
+            print("Error getting current number of containers")
 
         if action == Action.SCALE_UP:
-            new_numbers = min(current_supervisors + 1, self.max_containers)
-            self.scaler.set_number_of_supervisors(new_numbers)
+            new_numbers = min(current_containers + 1, self.max_containers)
+            self.scaler.set_number_of_containers(new_numbers)
         elif action == Action.SCALE_DOWN:
-            new_numbers = max(current_supervisors - 1, self.min_containers)
-            self.scaler.set_number_of_supervisors(new_numbers)
+            new_numbers = max(current_containers - 1, self.min_containers)
+            self.scaler.set_number_of_containers(new_numbers)
 
     def step(self, action: Action):
         """
@@ -139,60 +127,33 @@ class ContainerAutoscalingEnv(gym.Env):
         Returns:
             tuple: (observation, reward, done, info)
         """
+        self.time_counter += 1
+
         self.state = self._get_current_discretize_state()
 
-        reward = self._calculate_reward()
+        reward = self._calculate_reward(self.state, action)
 
         self._perform_action(action)
 
         terminated = self._is_done()
 
+        self.render(mode="human")
+
         return self.state, reward, terminated, False, {}
 
-        # self.delay_buffer.append((state, action))
-        #
-        # if len(self.delay_buffer) == self.scaling_delay:
-        #     delayed_state, delayed_action = self.delay_buffer.popleft()
-        #     reward = self._calculate_reward()
-        #
-        # self.action_history.append(action)
-        # self.state_history.append(self.state)
-        # self.time_counter += 1
-        #
-        # self.avg_mem_percent = np.mean(
-        #     self.metrics_collector.get_mem_percent(), dtype=np.float32
-        # )
-        # self.latency = 0
-        #
-        # # Apply action
-        # if self.time_counter >= self.scaling_delay:
-        #     delayed_action = self.action_history[0]  # Get the delayed action
-        #     if delayed_action == Action.SCALE_DOWN:
-        #         self.num_containers = max(self.min_containers, self.num_containers - 1)
-        #     elif delayed_action == Action.SCALE_UP:
-        #         self.num_containers = min(self.max_containers, self.num_containers + 1)
-        #     self.action_history = self.action_history[1:]
-        #     self.state_history = self.state_history[1:]
-        #     self.time_counter = self.scaling_delay - 1  # important
-        #
-        # self.state = np.array(
-        #     [self.avg_mem_percent, self.latency, self.num_containers],
-        #     dtype=np.float32,
-        # )
-        # reward = self._calculate_reward()
-        # terminated = self._is_done()
-        # info = {}
-        #
-        # return self.state, reward, terminated, False, info
-
-    def _calculate_reward(self):
+    def _calculate_reward(self, state, action: Action):
         """Calculates the reward based on current state."""
-        latency_reward = -self.latency / 100.0  # Normalize latency
-        cost_reward = -self.num_containers / self.max_containers  # Normalize cost
+        latency_reward = -state[1] / 100.0  # Normalize latency
+        cost_reward = -state[2] / self.max_containers  # Normalize cost
+
         stability_reward = 0
-        if len(self.action_history) > 0:
-            if self.action_history[-1] == 0 or self.action_history[-1] == 2:
-                stability_reward = -0.1  # slight penalty for scaling actions
+        if (
+            self.previous_action == Action.SCALE_DOWN
+            or self.previous_action == Action.SCALE_UP
+        ):
+            stability_reward = -0.1  # slight penalty for scaling actions
+
+        self.previous_action = Action
 
         return (
             self.reward_weights[0] * latency_reward
@@ -208,7 +169,7 @@ class ContainerAutoscalingEnv(gym.Env):
         """Renders the environment."""
         if mode == "human":
             print(
-                f"Time: {self.time_counter}, Containers: {self.num_containers}, CPU: {self.avg_mem_percent:.2f}, Latency: {self.latency:.2f}"
+                f"Time: {self.time_counter}, Containers: {self.state[2]}, CPU: {self.state[0]}, Latency: {self.state[1]:.2f}"
             )
         # Add other rendering modes if needed
 
@@ -217,7 +178,7 @@ async def q_learning(
     env: ContainerAutoscalingEnv,
     alpha=0.1,
     gamma=0.9,
-    epsilon=0.1,
+    epsilon=1,
     num_episodes=1000,
 ):
     """
@@ -241,36 +202,48 @@ async def q_learning(
     q_table = np.zeros(
         (num_cpu_bins * num_latency_bins * max_containers, num_actions)
     )  # Simplified state space discretization
+    delay_buffer = deque(maxlen=2)
+
+    def decay_epsilon():
+        epsilon = max(0.1, epsilon - 1 / (episode / 2))
+
+        return epsilon
 
     for episode in range(num_episodes):
+        terminated = False
         state, _ = env.reset()
-        done = False
         total_reward = 0
 
-        while not done:
+        while not terminated:
             # Exploration vs. Exploitation
             if np.random.uniform(0, 1) < epsilon:
                 action = env.action_space.sample()  # Explore
             else:
                 discrete_state = discretize_state(state)
                 action = np.argmax(q_table[discrete_state, :])  # Exploit
+            print(f"action: {action}")
 
-            next_state, reward, done, _, _ = env.step(action)
+            next_state, reward, terminated, _, _ = env.step(Action(action))
+
             total_reward += reward
 
-            # Q-table update
-            discrete_state = discretize_state(state)
-            discrete_next_state = discretize_state(next_state)
-            q_table[discrete_state, action] = q_table[
-                discrete_state, action
-            ] + alpha * (
-                reward
-                + gamma * np.max(q_table[discrete_next_state, :])
-                - q_table[discrete_state, action]
-            )
+            delay_buffer.append((next_state, action))
 
-            state = next_state
+            if len(delay_buffer) == 2:
+                state, action = delay_buffer.popleft()
 
+                # Q-table update
+                discrete_state = discretize_state(state)
+                discrete_next_state = discretize_state(next_state)
+                q_table[discrete_state, action] = q_table[
+                    discrete_state, action
+                ] + alpha * (
+                    reward
+                    + gamma * np.max(q_table[discrete_next_state, :])
+                    - q_table[discrete_state, action]
+                )
+
+            epsilon = decay_epsilon()
             await asyncio.sleep(10)
 
         if (episode + 1) % 100 == 0:
@@ -282,7 +255,7 @@ async def q_learning(
 if __name__ == "__main__":
     env = gym.make(
         id="container-autoscaling-v0",
-        render_mode=None,
+        render_mode="human",
         scaler=Autoscaler(url="http://localhost:8083/scale"),
         metrics_collector=MetricsCollector(url="http://localhost:9090"),
     )
