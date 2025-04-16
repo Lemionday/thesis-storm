@@ -5,3 +5,4 @@ ui.port: 8081
 
 supervisor.slots.ports:
   - 6700  # Define a single port for the 1 CPU slot
+  - 6701
