@@ -1,7 +1,6 @@
 import numpy as np
 from prometheus_api_client import PrometheusConnect
 
-
 PROMETHEUS_URL = "http://localhost:9090"
 
 
@@ -25,7 +24,7 @@ class MetricsCollector:
             each representing the percentage of CPU used by an individual
             Storm supervisor.
         """
-        query = "storm_supervisor_cpu_percent"
+        query = "avg_over_time(storm_supervisor_cpu_percent[20s])"
 
         # Each record returned by Prometheus contains a 'value' field,
         # which is a tuple: (timestamp, utilization as a string).
@@ -40,11 +39,23 @@ class MetricsCollector:
         return cpu_utilizations
 
     def get_mem_percent(self):
-        query = "storm_supervisor_memory_percent"
+        query = "avg_over_time(storm_supervisor_memory_percent[20s])"
         results = self.prom.custom_query(query=query)
         memory_percents = np.array(
             [record["value"][1] for record in results],
             dtype=np.float32,
         )
 
-        return memory_percents
+        return memory_percents[memory_percents != 0]
+
+    def get_storm_spout_messages_emitted(self):
+        query = "avg_over_time(storm_spout_messages_emitted[20s])"
+        results = self.prom.custom_query(query=query)
+        num_messages = np.array(
+            [record["value"][1] for record in results],
+            dtype=np.float32,
+        )
+        _ret = num_messages[num_messages != 0]
+        if len(_ret) == 0:
+            return [0]
+        return _ret

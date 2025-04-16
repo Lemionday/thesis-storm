@@ -42,7 +42,7 @@ class ContainerAutoscalingEnv(gym.Env):
         self,
         scaler: Autoscaler,
         metrics_collector: MetricsCollector,
-        min_containers=1,
+        min_containers=2,
         max_containers=5,
         render_mode=None,
     ):  # Weights for (latency, cost, stability)
@@ -85,84 +85,6 @@ class ContainerAutoscalingEnv(gym.Env):
     def _is_done(self):
         """Checks if the episode is done."""
         return self.time_counter > 200  # Arbitrary episode length
-
-
-# async def q_learning(
-#     env: ContainerAutoscalingEnv,
-#     alpha=0.1,
-#     gamma=0.9,
-#     epsilon=1,
-#     num_episodes=1000,
-# ):
-#     """
-#     Q-learning algorithm implementation.
-#
-#     Args:
-#         env (gym.Env): The Gymnasium environment.
-#         alpha (float): The learning rate.
-#         gamma (float): The discount factor.
-#         epsilon (float): The exploration rate.
-#         num_episodes (int): The number of episodes to train for.
-#
-#     Returns:
-#         numpy.ndarray: The learned Q-table.
-#     """
-#     # Initialize Q-table
-#     num_cpu_bins = 20  # Number of CPU bins
-#     num_latency_bins = 20  # Number of latency bins
-#     max_containers = 5
-#     num_actions = env.action_space.n  # -> 3
-#     q_table = np.zeros(
-#         (num_cpu_bins * num_latency_bins * max_containers, num_actions)
-#     )  # Simplified state space discretization
-#     delay_buffer = deque(maxlen=2)
-#
-#     def decay_epsilon():
-#         epsilon = max(0.1, epsilon - 1 / (episode / 2))
-#
-#         return epsilon
-#
-#     for episode in range(num_episodes):
-#         terminated = False
-#         state, _ = env.reset()
-#         total_reward = 0
-#
-#         while not terminated:
-#             # Exploration vs. Exploitation
-#             if np.random.uniform(0, 1) < epsilon:
-#                 action = env.action_space.sample()  # Explore
-#             else:
-#                 discrete_state = discretize_state(state)
-#                 action = np.argmax(q_table[discrete_state, :])  # Exploit
-#             print(f"action: {action}")
-#
-#             next_state, reward, terminated, _, _ = env.step(Action(action))
-#
-#             total_reward += reward
-#
-#             delay_buffer.append((next_state, action))
-#
-#             if len(delay_buffer) == 2:
-#                 state, action = delay_buffer.popleft()
-#
-#                 # Q-table update
-#                 discrete_state = discretize_state(state)
-#                 discrete_next_state = discretize_state(next_state)
-#                 q_table[discrete_state, action] = q_table[
-#                     discrete_state, action
-#                 ] + alpha * (
-#                     reward
-#                     + gamma * np.max(q_table[discrete_next_state, :])
-#                     - q_table[discrete_state, action]
-#                 )
-#
-#             epsilon = decay_epsilon()
-#             await asyncio.sleep(10)
-#
-#         if (episode + 1) % 100 == 0:
-#             print(f"Episode: {episode + 1}, Total Reward: {total_reward:.2f}")
-#
-#     return q_table
 
 
 if __name__ == "__main__":

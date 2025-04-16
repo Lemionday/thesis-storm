@@ -22,3 +22,19 @@ if __name__ == "__main__":
     q_table[(10, 100, 10)][Action.DO_NOTHING.value] = 1
     q_table[(10, 100, 10)][0] = 1
     print(q_table)
+
+    import numpy as np
+
+    # Example array of values
+    values = np.array([65, 70, 80, 90], dtype=np.float32)
+
+    # Target value to calculate deviation from
+    target = 75.0
+
+    # Calculate deviation (can be positive or negative)
+    deviation = (values - target) ** 2
+    print("Deviation:", deviation)
+
+    # If you want the absolute deviation (how far away, ignoring direction):
+    abs_deviation = np.abs(deviation)
+    print("Absolute Deviation:", abs_deviation)
