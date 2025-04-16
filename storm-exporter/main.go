@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -43,52 +44,52 @@ func main() {
 	//
 	// Create a non-global registry
 	reg := prometheus.NewRegistry()
-	// clusterMetric := NewClusterMetrics(reg)
-	// topologyMetrics := NewTopologyMetrics(reg)
-	// spoutMetrics := NewSpoutMetrics(reg)
-	// boltMetrics := NewBoltMetrics(reg)
+	clusterMetric := NewClusterMetrics(reg)
+	topologyMetrics := NewTopologyMetrics(reg)
+	spoutMetrics := NewSpoutMetrics(reg)
+	boltMetrics := NewBoltMetrics(reg)
 	supervisorMetrics := NewSupervisorMetrics(reg)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				// go collectClusterMetrics(clusterMetric, conf.stormUIHost, logger)
-				//
-				// go func() {
-				// 	topologies, err := FetchAndDecode[struct {
-				// 		Topologies []topologySummary `json:"topologies,omitempty"`
-				// 	}](
-				// 		fmt.Sprintf("http://%s/api/v1/topology/summary", conf.stormUIHost),
-				// 	)
-				// 	if err != nil {
-				// 		logger.Error(err.Error())
-				// 		return
-				// 	}
-				//
-				// 	for _, topo := range topologies.Topologies {
-				// 		collectTopologyMetrics(topologyMetrics, topo)
-				//
-				// 		data, err := FetchAndDecode[struct {
-				// 			Spouts []spoutSummary `json:"spouts"`
-				// 			Bolts  []boltSummary  `json:"bolts"`
-				// 		}](
-				// 			fmt.Sprintf(
-				// 				"http://%s/api/v1/topology/%s?window=600",
-				// 				conf.stormUIHost,
-				// 				topo.ID,
-				// 			),
-				// 		)
-				// 		if err != nil {
-				// 			logger.Error(err.Error())
-				// 			continue
-				// 		}
-				// 		collectSpoutMetrics(spoutMetrics, data.Spouts, topo.Name, topo.ID)
-				// 		collectBoltMetrics(boltMetrics, data.Bolts, topo.Name, topo.ID)
-				// 	}
-				// }()
+				go collectClusterMetrics(clusterMetric, conf.stormUIHost, logger)
+
+				go func() {
+					topologies, err := FetchAndDecode[struct {
+						Topologies []topologySummary `json:"topologies,omitempty"`
+					}](
+						fmt.Sprintf("http://%s/api/v1/topology/summary", conf.stormUIHost),
+					)
+					if err != nil {
+						logger.Error(err.Error())
+						return
+					}
+
+					for _, topo := range topologies.Topologies {
+						collectTopologyMetrics(topologyMetrics, topo)
+
+						data, err := FetchAndDecode[struct {
+							Spouts []spoutSummary `json:"spouts"`
+							Bolts  []boltSummary  `json:"bolts"`
+						}](
+							fmt.Sprintf(
+								"http://%s/api/v1/topology/%s?window=600",
+								conf.stormUIHost,
+								topo.ID,
+							),
+						)
+						if err != nil {
+							logger.Error(err.Error())
+							continue
+						}
+						collectSpoutMetrics(spoutMetrics, data.Spouts, topo.Name, topo.ID)
+						collectBoltMetrics(boltMetrics, data.Bolts, topo.Name, topo.ID)
+					}
+				}()
 
 				go dockerMonitor.collectSupervisorMetrics(context.Background(), supervisorMetrics)
-				logger.Info("Updated topologies's metrics")
+				// logger.Info("Updated topologies's metrics")
 			}
 		}
 	}()

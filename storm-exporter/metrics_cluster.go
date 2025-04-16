@@ -55,5 +55,5 @@ func collectClusterMetrics(m *clusterMetrics, stormUIHost string, logger *slog.L
 	m.WorkersTotal.Set(float64(summary.SlotsTotal))
 	m.WorkersInUsed.Set(float64(summary.SlotsUsed))
 
-	logger.Info("Updated cluster's metrics")
+	// logger.Info("Updated cluster's metrics")
 }
