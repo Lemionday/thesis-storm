@@ -1,3 +1,5 @@
 stormsmarthome/
 forecast/.vscode
 cloud
+autoscaler/credentials
+autoscaler/build/storm-autoscaler
