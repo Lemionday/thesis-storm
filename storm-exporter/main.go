@@ -18,6 +18,7 @@ type config struct {
 	addr        string
 	stormUIHost string
 	refreshRate int64
+	environment string
 }
 
 const (
@@ -88,7 +89,12 @@ func main() {
 					}
 				}()
 
-				go dockerMonitor.collectSupervisorMetrics(context.Background(), supervisorMetrics)
+				if conf.environment != "cloud" {
+					go dockerMonitor.collectSupervisorMetrics(
+						context.Background(),
+						supervisorMetrics,
+					)
+				}
 				// logger.Info("Updated topologies's metrics")
 			}
 		}
@@ -123,5 +129,6 @@ func loadConfig() *config {
 		}
 	}
 
+	conf.environment = os.Getenv("ENVIRONMENT")
 	return &conf
 }

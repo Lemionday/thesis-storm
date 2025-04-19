@@ -1,0 +1,53 @@
+---
+groups:
+  - name: docker_rules
+    rules:
+      - record: storm_supervisor_memory_percent
+        expr: without() cxp_memory_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.3:8000",job="container_exporter"}
+        labels:
+          supervisorID: 1
+
+      - record: storm_supervisor_memory_percent
+        expr: without() cxp_memory_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.4:8000",job="container_exporter"}
+        labels:
+          supervisorID: 2
+
+      - record: storm_supervisor_memory_percent
+        expr: without() cxp_memory_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.5:8000",job="container_exporter"}
+        labels:
+          supervisorID: 3
+
+      - record: storm_supervisor_memory_percent
+        expr: without() cxp_memory_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.6:8000",job="container_exporter"}
+        labels:
+          supervisorID: 4
+
+      - record: storm_supervisor_memory_percent
+        expr: without() cxp_memory_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.7:8000",job="container_exporter"}
+        labels:
+          supervisorID: 5
+
+      - record: storm_supervisor_cpu_percent
+        expr: without() cxp_cpu_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.3:8000",job="container_exporter"}
+        labels:
+          supervisorID: 1
+
+      - record: storm_supervisor_cpu_percent
+        expr: without() cxp_cpu_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.4:8000",job="container_exporter"}
+        labels:
+          supervisorID: 2
+
+      - record: storm_supervisor_cpu_percent
+        expr: without() cxp_cpu_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.5:8000",job="container_exporter"}
+        labels:
+          supervisorID: 3
+
+      - record: storm_supervisor_cpu_percent
+        expr: without() cxp_cpu_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.6:8000",job="container_exporter"}
+        labels:
+          supervisorID: 4
+
+      - record: storm_supervisor_cpu_percent
+        expr: without() cxp_cpu_percentage{container_name="storm-storm-supervisor-1","instance"="10.148.0.7:8000",job="container_exporter"}
+        labels:
+          supervisorID: 5

@@ -52,8 +52,6 @@ services:
         limits:
           memory: 500M
           cpus: 1
-      placement:
-        constraints: [node.labels.role == supervisor]
     depends_on: [nimbus, zookeeper]
 
 include:

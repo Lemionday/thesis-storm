@@ -1,0 +1,61 @@
+---
+services:
+  socket-proxy:
+    image: lscr.io/linuxserver/socket-proxy:latest
+    container_name: socket-proxy
+    environment:
+      - ALLOW_START=0  # optional
+      - ALLOW_STOP=0  # optional
+      - ALLOW_RESTARTS=0  # optional
+      - AUTH=0  # optional
+      - BUILD=0  # optional
+      - COMMIT=0  # optional
+      - CONFIGS=0  # optional
+      - CONTAINERS=1  # optional
+      - DISABLE_IPV6=0  # optional
+      - DISTRIBUTION=0  # optional
+      - EVENTS=1  # optional
+      - EXEC=0  # optional
+      - IMAGES=0  # optional
+      - INFO=0  # optional
+      - LOG_LEVEL=info  # optional
+      - NETWORKS=0  # optional
+      - NODES=0  # optional
+      - PING=1  # optional
+      - PLUGINS=0  # optional
+      - POST=0  # optional
+      - SECRETS=0  # optional
+      - SERVICES=0  # optional
+      - SESSION=0  # optional
+      - SWARM=0  # optional
+      - SYSTEM=0  # optional
+      - TASKS=0  # optional
+      - VERSION=1  # optional
+      - VOLUMES=0  # optional
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/run]
+
+  storm-exporter:
+    build:
+      context: .
+    container_name: storm-exporter
+    restart: always
+    environment:
+      - STORM_UI_HOST=${STORM_UI_HOST}:${STORM_UI_PORT}  # default localhost:8081
+      - REFRESH_INTERVAL=${STORM_EXPORTER_REFRESH_INTERVAL}  # default 5
+      - EXPORTER_LISTEN_ADDR=:${STORM_EXPORTER_PORT}
+      - DOCKER_HOST=tcp://socket-proxy:2375
+      - ENVIRONMENT=cloud
+    ports: ['${STORM_EXPORTER_PORT}:${STORM_EXPORTER_PORT}']
+    depends_on: [socket-proxy]
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./configs/prometheus.cloud.yml:/etc/prometheus/prometheus.yml
+      - ./configs/recording_rules.yml:/etc/prometheus/recording_rules.yml
+    ports: [9090:9090]
