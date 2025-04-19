@@ -40,7 +40,7 @@ class Autoscaler:
             return None
 
     def set_number_of_containers(self, replicas: int):
-        if replicas < 0 or replicas > 5:
+        if replicas < 2 or replicas > 5:
             return None
 
         resp = self._make_request(replicas=replicas)

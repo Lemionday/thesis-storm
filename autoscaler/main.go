@@ -86,6 +86,8 @@ func main() {
 		scaler = NewSystemdScaler()
 	} else if ENVIRONMENT == "Docker" {
 		scaler = NewDockerScaler()
+	} else if ENVIRONMENT == "Swarm" {
+		scaler = NewSwarmScaler()
 	} else {
 		log.Fatal("Unknown ENVIRONMENT")
 	}
@@ -94,7 +96,8 @@ func main() {
 	http.Handle("GET /scale", logRequest(http.HandlerFunc(getRunningHandler)))
 
 	fmt.Println("🔌 Listening on", fmt.Sprintf("http://localhost:%d/scale", port))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
+	// log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
+	runContainer()
 }
 
 func parsePortFromEnv(envVarName string, defaultPort int) (int, error) {

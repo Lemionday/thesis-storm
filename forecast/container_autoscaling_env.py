@@ -14,6 +14,8 @@ register(
     entry_point="container_autoscaling_env:ContainerAutoscalingEnv",
 )
 
+STEPS_PER_EPISODE = 200
+
 
 class Action(Enum):
     DO_NOTHING = 0
@@ -37,6 +39,7 @@ class ContainerAutoscalingEnv(gym.Env):
     delay_buffer: deque
     min_containers: int
     max_containers: int
+    return_queue: list[int]
 
     def __init__(
         self,
@@ -60,6 +63,8 @@ class ContainerAutoscalingEnv(gym.Env):
         self.metrics_collector = metrics_collector
         self.scaler = scaler
 
+        self.return_queue = []
+
         self.reset()
 
     def reset(self, *, seed=None, options=None):
@@ -70,10 +75,20 @@ class ContainerAutoscalingEnv(gym.Env):
         self.previous_action = Action.DO_NOTHING
         self.time_counter = 0
 
-    def _perform_action(self, action: Action):
+    def _perform_action(self, action: Action) -> bool:
         current_containers = self.scaler.get_number_of_containers()
         if current_containers is None:
             print("Error getting current number of containers")
+
+        out_of_bound = False
+        if action == Action.SCALE_UP and current_containers == self.max_containers:
+            out_of_bound = True
+
+        if action == Action.SCALE_DOWN and current_containers == self.min_containers:
+            out_of_bound = True
+
+        if out_of_bound:
+            return True
 
         if action == Action.SCALE_UP:
             new_numbers = min(current_containers + 1, self.max_containers)
@@ -82,9 +97,11 @@ class ContainerAutoscalingEnv(gym.Env):
             new_numbers = max(current_containers - 1, self.min_containers)
             self.scaler.set_number_of_containers(new_numbers)
 
+        return False
+
     def _is_done(self):
         """Checks if the episode is done."""
-        return self.time_counter > 200  # Arbitrary episode length
+        return self.time_counter > STEPS_PER_EPISODE  # Arbitrary episode length
 
 
 if __name__ == "__main__":

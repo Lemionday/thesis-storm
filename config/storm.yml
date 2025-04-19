@@ -5,4 +5,26 @@ ui.port: 8081
 
 supervisor.slots.ports:
   - 6700  # Define a single port for the 1 CPU slot
-  - 6701
+
+topology.spread.components:
+  - split-1
+  - split-5
+  - split-10
+  - split-15
+  - split-20
+  - split-30
+  - split-60
+  - split-120
+# storm.scheduler: org.apache.storm.scheduler.resource.ResourceAwareScheduler
+#
+# supervisor.memory.capacity.mb: 450.0
+# supervisor.cpu.capacity: 100.0
+#
+# topology.worker.max.heap.size.mb: 350.0
+#
+# resource.aware.scheduler.onheap.memory.mb.default: 16.0
+# resource.aware.scheduler.offheap.memory.mb.default: 0.0
+# resource.aware.scheduler.cpu.pcore.percent.default: 4.0
+#
+# topology.component.resources.onheap.memory.mb: 12.0
+# topology.component.cpu.pcore.percent: 4.0
