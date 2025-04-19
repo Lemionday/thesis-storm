@@ -47,10 +47,13 @@ services:
       - ./config/hosts:/etc/hosts:ro
       - ./config/storm.yml:/conf/storm.yaml
     deploy:
+      replicas: 2
       resources:
         limits:
-          memory: 400M
+          memory: 500M
           cpus: 1
+      placement:
+        constraints: [node.labels.role == supervisor]
     depends_on: [nimbus, zookeeper]
 
 include:
