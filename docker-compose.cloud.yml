@@ -17,7 +17,7 @@ services:
     command: [storm, nimbus]
     volumes:
       - ./config/hosts:/etc/hosts:ro
-      - ./config/storm.cloud.yml:/conf/storm.yaml
+      - ./config/storm.yml:/conf/storm.yaml
       - ./stormsmarthome/target/:/topologies/:ro
     depends_on: [zookeeper]
     links: [zookeeper]
@@ -34,7 +34,7 @@ services:
     command: [storm, ui]
     volumes:
       - ./config/hosts:/etc/hosts:ro
-      - ./config/storm.cloud.yml:/conf/storm.yaml
+      - ./config/storm.yml:/conf/storm.yaml
     ports: [8081:8081]
     depends_on: [zookeeper, nimbus]
     links: [zookeeper, nimbus]

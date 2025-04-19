@@ -82,12 +82,10 @@ func main() {
 	MAX_REPLICAS = parseIntFromEnv("MAX_REPLICAS", 5)
 
 	ENVIRONMENT := os.Getenv("ENVIRONMENT")
-	if ENVIRONMENT == "AWS" {
-		scaler = NewSystemdScaler()
-	} else if ENVIRONMENT == "Docker" {
+	if ENVIRONMENT == "Docker" {
 		scaler = NewDockerScaler()
-	} else if ENVIRONMENT == "Swarm" {
-		scaler = NewSwarmScaler()
+	} else if ENVIRONMENT == "GCP" {
+		scaler = NewGCPScaler()
 	} else {
 		log.Fatal("Unknown ENVIRONMENT")
 	}
@@ -96,8 +94,7 @@ func main() {
 	http.Handle("GET /scale", logRequest(http.HandlerFunc(getRunningHandler)))
 
 	fmt.Println("🔌 Listening on", fmt.Sprintf("http://localhost:%d/scale", port))
-	// log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
-	runContainer()
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
 
 func parsePortFromEnv(envVarName string, defaultPort int) (int, error) {

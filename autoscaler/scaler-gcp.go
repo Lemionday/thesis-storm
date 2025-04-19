@@ -1,73 +1,129 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"fmt"
+	"log"
+	"os"
+	"sync"
 	"time"
 
-	run "cloud.google.com/go/run/apiv2"
-	runpb "cloud.google.com/go/run/apiv2/runpb"
-	"google.golang.org/api/option"
-	"google.golang.org/protobuf/types/known/durationpb"
+	"golang.org/x/crypto/ssh"
 )
 
-func runContainer() {
-	ctx := context.Background()
+type GCPScaler struct {
+	serviceName string
+	sshConfig   *ssh.ClientConfig
+	addresses   []string
+}
 
-	client, err := run.NewServicesClient(
-		ctx,
-		option.WithCredentialsFile("./credentials/smart-poet-454914-t5-3758cbdab057.json"),
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Run client error: %v", err))
+func NewGCPScaler() *GCPScaler {
+	sshFilePath := os.Getenv("SSH_FILE_PATH")
+	if sshFilePath == "" {
+		log.Fatal("SSH_FILE_PATH is empty")
 	}
-	defer client.Close()
 
-	projectID := "smart-poet-454914-t5"
-	location := "asia-southeast1"
-	serviceID := "zookeeper-instance"
-	image := "zookeeper:3.7"
+	key, err := os.ReadFile(sshFilePath)
+	if err != nil {
+		log.Fatalf("unable to read private key: %v", err)
+	}
 
-	req := &runpb.CreateServiceRequest{
-		Parent: fmt.Sprintf("projects/%s/locations/%s", projectID, location),
-		Service: &runpb.Service{
-			Name: fmt.Sprintf(
-				"projects/%s/locations/%s/services/%s",
-				projectID,
-				location,
-				serviceID,
-			),
-			Template: &runpb.RevisionTemplate{
-				Containers: []*runpb.Container{
-					{
-						Image: image,
-						Ports: []*runpb.ContainerPort{
-							{ContainerPort: 2181}, // default ZooKeeper port
-						},
-						Resources: &runpb.ResourceRequirements{
-							Limits: map[string]string{
-								"cpu":    "1",
-								"memory": "512Mi",
-							},
-						},
-					},
-				},
-				Timeout: durationpb.New(60 * time.Second),
-			},
+	// Create the Signer for this private key.
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		log.Fatalf("unable to parse private key: %v", err)
+	}
+	// SSH client configuration
+	config := &ssh.ClientConfig{
+		User: "storm",
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
 		},
-		ServiceId: serviceID,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // For testing purposes only
+		Timeout:         2 * time.Second,
 	}
+	return &GCPScaler{
+		sshConfig:   config,
+		serviceName: serviceName,
+		addresses: []string{
+			"10.148.0.21:22",
+			"10.148.0.22:22",
+			"10.148.0.23:22",
+			"10.148.0.24:22",
+			"10.148.0.25:22",
+		},
+	}
+}
 
-	op, err := client.CreateService(ctx, req)
+func (s *GCPScaler) SetNumber(machines int) (int, error) {
+	running, err := s.Number()
 	if err != nil {
-		panic(fmt.Sprintf("Service creation failed: %v", err))
+		log.Println("Failed to get replicas", err)
+		return 0, err
 	}
 
-	// Wait for deployment
-	resp, err := op.Wait(ctx)
+	if running == machines {
+		return machines, nil
+	}
+
+	err = dockerComposeUpScaleReplicas(machines)
 	if err != nil {
-		panic(fmt.Sprintf("Waiting for deployment failed: %v", err))
+		log.Println("Failed to update replicas:", err)
+		return 0, err
 	}
 
-	fmt.Printf("ZooKeeper deployed: %s\n", resp.Name)
+	// time.Sleep(10 * time.Second)
+
+	rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, machines, "")
+	return s.Number()
+}
+
+func (s *GCPScaler) Number() (int, error) {
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	replicas := 0
+	for _, addr := range s.addresses {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			client, err := ssh.Dial("tcp", addr, s.sshConfig)
+			if err != nil {
+				fmt.Printf("failed to dial: %v\n", err)
+				return
+			}
+			defer client.Close()
+
+			// Create a new session
+			session, err := client.NewSession()
+			if err != nil {
+				fmt.Printf("failed to create session: %v\n", err)
+				return
+			}
+			defer session.Close()
+
+			var output bytes.Buffer
+			session.Stdout = &output
+
+			// === Compose Service Check ===
+			cmd := fmt.Sprintf(
+				"docker inspect -f '{{.State.Running}}' %s",
+				serviceName,
+			)
+			err = session.Run(cmd)
+			if err != nil {
+				fmt.Printf("%v\n", err)
+				return
+			}
+
+			mu.Lock()
+			replicas = replicas + 1
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
+
+	return replicas, nil
 }
