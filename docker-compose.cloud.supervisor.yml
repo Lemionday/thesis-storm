@@ -1,0 +1,15 @@
+---
+services:
+  storm-supervisor:
+    image: storm
+    restart: always
+    command: [storm, supervisor]
+    volumes:
+      - ./config/hosts:/etc/hosts:ro
+      - ./config/storm.cloud.yml:/conf/storm.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+          cpus: 1
+    depends_on: [nimbus, zookeeper]

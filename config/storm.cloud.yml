@@ -1,9 +1,10 @@
 ---
-storm.zookeeper.servers: [zookeeper]
-nimbus.seeds: [nimbus]
+storm.zookeeper.servers: [10.148.0.2]
+nimbus.seeds: [10.148.0.2]
 ui.port: 8081
 
-supervisor.slots.ports: [6700]
+supervisor.slots.ports:
+  - 6700  # Define a single port for the 1 CPU slot
 
 topology.spread.components:
   - split-1
