@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/expfmt"
 )
 
 const (
@@ -46,11 +48,48 @@ func (dm *DockerMonitor) Close() {
 	}
 }
 
+func fetchAndTransform(url string, index int, sm *supervisorMetrics) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Printf("Failed to fetch from %s: %v", url, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	parser := expfmt.TextParser{}
+	metricFamilies, err := parser.TextToMetricFamilies(resp.Body)
+	if err != nil {
+		log.Printf("Failed to parse metrics from %s: %v", url, err)
+		return
+	}
+
+	// Extract the metric you're interested in
+	if mf, ok := metricFamilies["cxp_memory_percentage"]; ok {
+		for _, m := range mf.Metric {
+			supervisorID := fmt.Sprintf("%d", index)
+			if m.Gauge != nil {
+				value := m.Gauge.GetValue()
+				sm.MemoryPercent.WithLabelValues(supervisorID).Set(value)
+			}
+		}
+	} else {
+		log.Printf("Metric cxp_memory_percentage not found in %s", url)
+	}
+}
+
 // GetContainerStats retrieves and monitors stats for matching containers
 func (dm *DockerMonitor) collectSupervisorMetrics(
 	ctx context.Context,
+	conf *config,
 	m *supervisorMetrics,
 ) {
+	if conf.environment == "cloud" {
+		for i, endpoint := range conf.endpoints {
+			fetchAndTransform(endpoint, i+1, m)
+		}
+
+		return
+	}
 	containers, err := dm.client.ContainerList(
 		ctx,
 		container.ListOptions{

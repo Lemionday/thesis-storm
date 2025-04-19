@@ -1,0 +1,22 @@
+set dotenv-load
+# Set shell to bash
+set shell := ["bash", "-cu"]
+
+# Variables (adjust to your need)
+GOOS := 'linux'
+GOARCH := 'amd64'
+BINARY := 'build/storm-exporter'
+REMOTE_PATH := '/home/storm'
+INSTANCE_NAME := 'storm-manager'
+
+# 1. Build for Linux
+build:
+	CGO_ENABLED=0 GOOS={{GOOS}} GOARCH={{GOARCH}} go build -o {{BINARY}} .
+
+# 2. Copy to VM using gcloud
+copy:
+	gcloud compute scp ./{{BINARY}} storm@{{INSTANCE_NAME}}:{{REMOTE_PATH}}
+	gcloud compute ssh storm@{{INSTANCE_NAME}} --command="chmod 777 {{REMOTE_PATH}}/storm-exporter"
+
+# 3. Full workflow
+deploy: build copy

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,6 +20,7 @@ type config struct {
 	stormUIHost string
 	refreshRate int64
 	environment string
+	endpoints   []string
 }
 
 const (
@@ -89,12 +91,11 @@ func main() {
 					}
 				}()
 
-				if conf.environment != "cloud" {
-					go dockerMonitor.collectSupervisorMetrics(
-						context.Background(),
-						supervisorMetrics,
-					)
-				}
+				go dockerMonitor.collectSupervisorMetrics(
+					context.Background(),
+					conf,
+					supervisorMetrics,
+				)
 				// logger.Info("Updated topologies's metrics")
 			}
 		}
@@ -130,5 +131,14 @@ func loadConfig() *config {
 	}
 
 	conf.environment = os.Getenv("ENVIRONMENT")
+	if conf.environment == "cloud" {
+		for _, endpoint := range strings.Split(os.Getenv("END_POINTS"), ",") {
+			conf.endpoints = append(
+				conf.endpoints,
+				fmt.Sprintf("http://%s:8000/metrics", strings.Trim(endpoint, " ")),
+			)
+		}
+		fmt.Println(conf.endpoints)
+	}
 	return &conf
 }
