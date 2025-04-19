@@ -1,4 +1,22 @@
 set dotenv-load
+# Set shell to bash
+set shell := ["bash", "-cu"]
 
-swarm:
-	ENVIRONMENT=$ENVIRONMENT REMOTE_SERVER_ADDRESS=$REMOTE_SERVER_ADDRESS SSH_FILE_PATH=$SSH_FILE_PATH go run .
+# Variables (adjust to your need)
+GOOS := linux
+GOARCH := amd64
+BINARY := storm-autoscaler
+REMOTE_PATH := /home/storm/
+INSTANCE_NAME := storm-manager
+ZONE := asia-southeast1-a
+
+# 1. Build for Linux
+build:
+	GOOS={{GOOS}} GOARCH={{GOARCH}} go build -o {{BINARY}} .
+
+# 2. Copy to VM using gcloud
+copy:
+	gcloud compute scp ./{{BINARY}} {{INSTANCE_NAME}}:{{REMOTE_PATH}} --zone={{ZONE}}
+
+# 3. Full workflow
+deploy: build copy
