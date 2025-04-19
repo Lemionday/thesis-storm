@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 
 from autoscaler import Autoscaler
 from container_autoscaling_env import Action, ContainerAutoscalingEnv
-from metrics_collector import MetricsCollector
+from metrics_collector import PROMETHEUS_URL, MetricsCollector
 
 NUM_EPISODES = 1
 LEARNING_RATE = 0.2
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     env = QLearningContainerAutoscalingEnv(
         render_mode="human",
         scaler=Autoscaler(url="http://localhost:8083/scale"),
-        metrics_collector=MetricsCollector(url="http://localhost:9090"),
+        metrics_collector=MetricsCollector(url=PROMETHEUS_URL),
     )
 
     q_table = None

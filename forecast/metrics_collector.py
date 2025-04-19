@@ -1,7 +1,9 @@
+import os
+
 import numpy as np
 from prometheus_api_client import PrometheusConnect
 
-PROMETHEUS_URL = "http://localhost:9090"
+PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 
 
 class MetricsCollector:
@@ -59,3 +61,9 @@ class MetricsCollector:
         if len(_ret) == 0:
             return [0]
         return _ret
+
+
+# unit testing
+if __name__ == "__main__":
+    mc = MetricsCollector(PROMETHEUS_URL)
+    print(mc.get_mem_percent())

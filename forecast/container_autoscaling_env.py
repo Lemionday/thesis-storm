@@ -7,7 +7,7 @@ from gymnasium.envs.registration import register
 from gymnasium.utils.env_checker import check_env
 
 from autoscaler import Autoscaler
-from metrics_collector import MetricsCollector
+from metrics_collector import PROMETHEUS_URL, MetricsCollector
 
 register(
     id="container-autoscaling-v0",
@@ -109,6 +109,6 @@ if __name__ == "__main__":
         id="container-autoscaling-v0",
         render_mode="human",
         scaler=Autoscaler(url="http://localhost:8083/scale"),
-        metrics_collector=MetricsCollector(url="http://localhost:9090"),
+        metrics_collector=MetricsCollector(url=PROMETHEUS_URL),
     )
     print(check_env(env.unwrapped))
