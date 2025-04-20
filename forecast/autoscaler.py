@@ -1,4 +1,8 @@
+import os
+
 import requests
+
+AUTOSCALER_URL = os.getenv("AUTOSCALER_URL", "http://localhost:8083")
 
 
 class Autoscaler:
@@ -12,7 +16,7 @@ class Autoscaler:
     """
 
     def __init__(self, url):
-        self.url = url
+        self.url = url + "/scale"
 
     def _make_request(self, replicas: int = 0):
         try:
@@ -60,7 +64,7 @@ class Autoscaler:
 
 
 if __name__ == "__main__":
-    url = "http://localhost:8083/scale"
+    url = "http://localhost:8083"
 
     scaler = Autoscaler(url)
 

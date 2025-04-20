@@ -6,11 +6,11 @@ import gymnasium as gym
 import numpy as np
 from matplotlib import pyplot as plt
 
-from autoscaler import Autoscaler
+from autoscaler import AUTOSCALER_URL, Autoscaler
 from container_autoscaling_env import Action, ContainerAutoscalingEnv
 from metrics_collector import PROMETHEUS_URL, MetricsCollector
 
-NUM_EPISODES = 1
+NUM_EPISODES = 10
 LEARNING_RATE = 0.2
 DISCOUNT_FACTOR = 0.9
 INITIAL_EPSILON = 1.0
@@ -278,7 +278,7 @@ async def train_agent(
 if __name__ == "__main__":
     env = QLearningContainerAutoscalingEnv(
         render_mode="human",
-        scaler=Autoscaler(url="http://localhost:8083/scale"),
+        scaler=Autoscaler(url=AUTOSCALER_URL),
         metrics_collector=MetricsCollector(url=PROMETHEUS_URL),
     )
 
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         )
 
     # Smooth over a 5 episode window
-    rolling_length = 1
+    rolling_length = 20
     fig, axs = plt.subplots(ncols=2, figsize=(12, 5))
 
     axs[0].set_title("Episode rewards")
@@ -330,4 +330,5 @@ if __name__ == "__main__":
         range(len(training_error_moving_average)), training_error_moving_average
     )
     plt.tight_layout()
-    plt.show()
+    # plt.show()
+    plt.savefig("results.png")

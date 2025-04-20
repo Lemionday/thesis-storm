@@ -91,36 +91,11 @@ func (s *GCPScaler) SetNumber(machines int) (int, error) {
 		return 0, nil
 	}
 
+	log.Printf("%d instances running\n", machines)
 	time.Sleep(10 * time.Second)
 
 	rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, machines, "")
 	return machines, nil
-}
-
-func connectRemoteHost(addr string) (*client.Client, error) {
-	remoteHost := fmt.Sprintf("ssh://storm@%s", addr)
-	helper, err := connhelper.GetConnectionHelper(remoteHost)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting connection helper: %v\n", err)
-	}
-
-	// Create an HTTP client with the SSH dialer
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			DialContext: helper.Dialer,
-		},
-	}
-	cli, err := client.NewClientWithOpts(
-		client.WithHost(remoteHost),
-		client.WithHTTPClient(httpClient),
-		client.WithAPIVersionNegotiation(),
-		client.WithTimeout(1*time.Second),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("❌ Failed to connect to Docker daemon: %v\n", err)
-	}
-
-	return cli, nil
 }
 
 func (s *GCPScaler) Number() (int, error) {
@@ -205,4 +180,30 @@ func StopContainer(
 		return fmt.Errorf("failed to stop container '%s': %w", containerName, err)
 	}
 	return nil
+}
+
+func connectRemoteHost(addr string) (*client.Client, error) {
+	remoteHost := fmt.Sprintf("ssh://storm@%s", addr)
+	helper, err := connhelper.GetConnectionHelper(remoteHost)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting connection helper: %v\n", err)
+	}
+
+	// Create an HTTP client with the SSH dialer
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: helper.Dialer,
+		},
+	}
+	cli, err := client.NewClientWithOpts(
+		client.WithHost(remoteHost),
+		client.WithHTTPClient(httpClient),
+		client.WithAPIVersionNegotiation(),
+		client.WithTimeout(1*time.Second),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("❌ Failed to connect to Docker daemon: %v\n", err)
+	}
+
+	return cli, nil
 }
