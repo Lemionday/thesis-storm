@@ -63,13 +63,25 @@ func fetchAndTransform(url string, index int, sm *supervisorMetrics) {
 		return
 	}
 
+	isZero := true
+	supervisorID := fmt.Sprintf("%d", index)
+	defer func() {
+		if isZero {
+			sm.MemoryPercent.WithLabelValues(supervisorID).Set(0)
+		}
+	}()
+
 	// Extract the metric you're interested in
 	if mf, ok := metricFamilies["cxp_memory_percentage"]; ok {
 		for _, m := range mf.Metric {
-			supervisorID := fmt.Sprintf("%d", index)
-			if m.Gauge != nil {
-				value := m.Gauge.GetValue()
-				sm.MemoryPercent.WithLabelValues(supervisorID).Set(value)
+			for _, label := range m.Label {
+				if label.GetName() == "container_name" &&
+					label.GetValue() == "thesis-storm-storm-supervisor-1" {
+					value := m.Gauge.GetValue()
+					sm.MemoryPercent.WithLabelValues(supervisorID).Set(value)
+					isZero = false
+					return
+				}
 			}
 		}
 	} else {
