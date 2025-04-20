@@ -1,6 +1,6 @@
 ---
 storm.zookeeper.servers: [10.148.0.20]
-nimbus.seeds: [10.148.0.20]
+nimbus.seeds: [nimbus]
 ui.port: 8081
 
 supervisor.slots.ports:
