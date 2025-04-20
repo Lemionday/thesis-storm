@@ -1,0 +1,9 @@
+---
+services:
+  mqtt-publisher:
+    image: mr4x2/mqtt-publisher:v1
+    volumes: [./data-file:/app/data-file, ./publish.sh:/app/publish.sh]
+    command: sh ./publish.sh
+    environment:
+      BROKER_URL: broker.emqx.io
+      TOPIC: iot-data

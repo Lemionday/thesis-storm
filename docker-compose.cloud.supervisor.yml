@@ -14,7 +14,7 @@ services:
     restart: always
     command: [storm, supervisor]
     volumes:
-      - ./config/hosts:/etc/hosts:ro
+      - ./config/hosts.cloud:/etc/hosts:ro
       - ./config/storm.cloud.yml:/conf/storm.yaml
     deploy:
       resources:
