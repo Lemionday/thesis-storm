@@ -54,5 +54,19 @@ services:
           cpus: 1
     depends_on: [nimbus, zookeeper]
 
+  mysql:
+    image: mariadb
+    container_name: mysql
+    environment:
+      MARIADB_ROOT_PASSWORD: Uet123
+      MARIADB_DATABASE: iotdata
+      MARIADB_USER: user1
+      MARIADB_PASSWORD: Uet123
+    ports: [3306:3306]
+    volumes: [mysql_data:/var/lib/mysql]
+
+volumes:
+  mysql_data:
+
 include:
   - path: ./storm-exporter/docker-compose.yml
