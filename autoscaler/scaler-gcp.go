@@ -1,56 +1,34 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/ssh"
+	"github.com/docker/cli/cli/connhelper"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 )
 
 type GCPScaler struct {
 	serviceName string
-	sshConfig   *ssh.ClientConfig
 	addresses   []string
 }
 
 func NewGCPScaler() *GCPScaler {
-	sshFilePath := os.Getenv("SSH_FILE_PATH")
-	if sshFilePath == "" {
-		log.Fatal("SSH_FILE_PATH is empty")
-	}
-
-	key, err := os.ReadFile(sshFilePath)
-	if err != nil {
-		log.Fatalf("unable to read private key: %v", err)
-	}
-
-	// Create the Signer for this private key.
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		log.Fatalf("unable to parse private key: %v", err)
-	}
-	// SSH client configuration
-	config := &ssh.ClientConfig{
-		User: "storm",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // For testing purposes only
-		Timeout:         2 * time.Second,
-	}
 	return &GCPScaler{
-		sshConfig:   config,
-		serviceName: serviceName,
+		serviceName: "thesis-storm-storm-supervisor-1",
 		addresses: []string{
-			"10.148.0.21:22",
-			"10.148.0.22:22",
-			"10.148.0.23:22",
-			"10.148.0.24:22",
-			"10.148.0.25:22",
+			"10.148.0.21",
+			"10.148.0.22",
+			"10.148.0.23",
+			"10.148.0.24",
+			"10.148.0.25",
 		},
 	}
 }
@@ -66,16 +44,83 @@ func (s *GCPScaler) SetNumber(machines int) (int, error) {
 		return machines, nil
 	}
 
-	err = dockerComposeUpScaleReplicas(machines)
-	if err != nil {
-		log.Println("Failed to update replicas:", err)
-		return 0, err
+	hasError := false
+	var mu sync.Mutex
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	for i, addr := range s.addresses {
+		if i < MIN_REPLICAS {
+			continue
+		}
+
+		cli, err := connectRemoteHost(addr)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			continue
+		}
+		defer cli.Close()
+
+		// Exceed number of containers get shut down
+		if i >= machines {
+			go func() {
+				err := StopContainer(ctx, cli, s.serviceName)
+				if err != nil {
+					mu.Lock()
+					hasError = true
+					mu.Unlock()
+				}
+			}()
+			continue
+		}
+
+		go func() {
+			err := StartContainer(ctx, cli, s.serviceName)
+			if err != nil {
+				mu.Lock()
+				hasError = true
+				mu.Unlock()
+			}
+		}()
 	}
 
-	// time.Sleep(10 * time.Second)
+	<-ctx.Done()
+
+	if hasError {
+		log.Println("failed scale supervisors")
+		return 0, nil
+	}
+
+	time.Sleep(10 * time.Second)
 
 	rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, machines, "")
-	return s.Number()
+	return machines, nil
+}
+
+func connectRemoteHost(addr string) (*client.Client, error) {
+	remoteHost := fmt.Sprintf("ssh://storm@%s", addr)
+	helper, err := connhelper.GetConnectionHelper(remoteHost)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting connection helper: %v\n", err)
+	}
+
+	// Create an HTTP client with the SSH dialer
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: helper.Dialer,
+		},
+	}
+	cli, err := client.NewClientWithOpts(
+		client.WithHost(remoteHost),
+		client.WithHTTPClient(httpClient),
+		client.WithAPIVersionNegotiation(),
+		client.WithTimeout(1*time.Second),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("❌ Failed to connect to Docker daemon: %v\n", err)
+	}
+
+	return cli, nil
 }
 
 func (s *GCPScaler) Number() (int, error) {
@@ -88,42 +133,76 @@ func (s *GCPScaler) Number() (int, error) {
 		go func() {
 			defer wg.Done()
 
-			client, err := ssh.Dial("tcp", addr, s.sshConfig)
-			if err != nil {
-				fmt.Printf("failed to dial: %v\n", err)
-				return
-			}
-			defer client.Close()
-
-			// Create a new session
-			session, err := client.NewSession()
-			if err != nil {
-				fmt.Printf("failed to create session: %v\n", err)
-				return
-			}
-			defer session.Close()
-
-			var output bytes.Buffer
-			session.Stdout = &output
-
-			// === Compose Service Check ===
-			cmd := fmt.Sprintf(
-				"docker inspect -f '{{.State.Running}}' %s",
-				serviceName,
-			)
-			err = session.Run(cmd)
+			cli, err := connectRemoteHost(addr)
 			if err != nil {
 				fmt.Printf("%v\n", err)
 				return
 			}
+			defer cli.Close()
 
-			mu.Lock()
-			replicas = replicas + 1
-			mu.Unlock()
+			ctx := context.Background()
+
+			container, err := cli.ContainerInspect(ctx, s.serviceName)
+			if err != nil {
+				fmt.Fprintf(
+					os.Stderr,
+					"⚠️  Could not inspect container '%s': %v\n",
+					addr,
+					err,
+				)
+				return
+			}
+
+			if container.State != nil && container.State.Running {
+				fmt.Printf("✅ Container '%s' is running!\n", addr)
+				mu.Lock()
+				replicas = replicas + 1
+				mu.Unlock()
+			} else {
+				fmt.Printf("❌ Container '%s' is NOT running.\n", addr)
+			}
 		}()
 	}
 
 	wg.Wait()
 
 	return replicas, nil
+}
+
+// Start the container on remote host
+func StartContainer(ctx context.Context, cli *client.Client, containerName string) error {
+	err := cli.ContainerStart(ctx, containerName, container.StartOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to start container '%s': %w", containerName, err)
+	}
+	return nil
+}
+
+// Stop the container on remote host
+func StopContainer(
+	ctx context.Context,
+	cli *client.Client,
+	containerName string,
+) error {
+	containers, err := cli.ContainerList(
+		ctx,
+		container.ListOptions{
+			Filters: filters.NewArgs(
+				filters.KeyValuePair{Key: "name", Value: "thesis-storm-storm-supervisor-1"},
+			),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to list containers %v", err)
+	}
+
+	if len(containers) == 0 {
+		return nil
+	}
+
+	err = cli.ContainerStop(ctx, containers[0].ID, container.StopOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to stop container '%s': %w", containerName, err)
+	}
+	return nil
 }

@@ -60,6 +60,7 @@ func scaleHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%d", running)
+	log.Println(running)
 }
 
 func getRunningHandler(w http.ResponseWriter, r *http.Request) {
