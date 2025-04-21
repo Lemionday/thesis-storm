@@ -28,6 +28,9 @@ deployment** environments.
 ### GCP
 
 ```bash
+# master
+docker compose -f /home/storm/thesis-storm/docker-compose.cloud.supervisor.yml up -d
+
 cp storm-exporter/.env.example storm-exporter/.env
 
 docker compose -f /home/storm/thesis-storm/docker-compose.cloud.supervisor.yml up -d

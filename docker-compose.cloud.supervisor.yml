@@ -13,6 +13,7 @@ services:
     image: storm
     restart: always
     command: [storm, supervisor]
+    network_mode: host
     volumes:
       - ./config/hosts.cloud:/etc/hosts:ro
       - ./config/storm.cloud.yml:/conf/storm.yaml
