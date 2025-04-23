@@ -4,13 +4,13 @@ nimbus.seeds: [nimbus]
 ui.port: 8081
 
 supervisor.slots.ports: [6700]
-#
-# topology.spread.components:
-#   - split-1
-#   - split-5
-#   - split-10
-#   - split-15
-#   - split-20
-#   - split-30
-#   - split-60
-#   - split-120
+
+topology.spread.components:
+  - split-1
+  - split-5
+  - split-10
+  - split-15
+  - split-20
+  - split-30
+  - split-60
+  - split-120
