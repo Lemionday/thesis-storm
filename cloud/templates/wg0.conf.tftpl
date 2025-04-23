@@ -1,0 +1,10 @@
+[Interface]
+PrivateKey = ${client_private_key}
+Address = ${client_private_ip}/24
+ListenPort = 51820
+
+[Peer]
+PublicKey = ${server_public_key}
+Endpoint = ${server_public_ip}:51820
+AllowedIPs = 10.0.0.0/24
+PersistentKeepalive = 25
