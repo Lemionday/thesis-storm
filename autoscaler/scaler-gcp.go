@@ -46,7 +46,7 @@ func (s *GCPScaler) SetNumber(machines int) (int, error) {
 
 	hasError := false
 	var mu sync.Mutex
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	for i, addr := range s.addresses {
@@ -92,9 +92,8 @@ func (s *GCPScaler) SetNumber(machines int) (int, error) {
 	}
 
 	log.Printf("%d instances running\n", machines)
-	time.Sleep(10 * time.Second)
+	// time.Sleep(10 * time.Second)
 
-	rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, machines, "")
 	return machines, nil
 }
 
@@ -199,7 +198,7 @@ func connectRemoteHost(addr string) (*client.Client, error) {
 		client.WithHost(remoteHost),
 		client.WithHTTPClient(httpClient),
 		client.WithAPIVersionNegotiation(),
-		client.WithTimeout(1*time.Second),
+		client.WithTimeout(3*time.Second),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("❌ Failed to connect to Docker daemon: %v\n", err)

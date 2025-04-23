@@ -91,6 +91,19 @@ func main() {
 		log.Fatal("Unknown ENVIRONMENT")
 	}
 
+	// go func() {
+	// 	ticker := time.NewTicker(5 * time.Minute)
+	// 	defer ticker.Stop() // always stop your ticker
+	//
+	// 	for {
+	// 		select {
+	// 		case _ = <-ticker.C:
+	// 			rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, 0, "")
+	// 			// 🔁 your repeated task here
+	// 		}
+	// 	}
+	// }()
+	//
 	http.Handle("POST /scale", logRequest(http.HandlerFunc(scaleHandler)))
 	http.Handle("GET /scale", logRequest(http.HandlerFunc(getRunningHandler)))
 
