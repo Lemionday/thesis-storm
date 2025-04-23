@@ -1,9 +1,10 @@
 stormsmarthome/
 forecast/.vscode
-cloud
 autoscaler/credentials
 autoscaler/build
 storm-exporter/build
 mqtt/data-file
 mqtt/venv
 mqtt/debs40houses16h.tar.gz
+cloud/secrets
+cloud/scripts/setup_wireguard.sh

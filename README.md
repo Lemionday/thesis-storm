@@ -35,6 +35,11 @@ cp storm-exporter/.env.example storm-exporter/.env
 
 docker compose -f /home/storm/thesis-storm/docker-compose.cloud.supervisor.yml up -d
 
+cd cloud
+just copy-ssh-key
 
-ssh -i .ssh/storm 10.148.0.24 # Add remote host to known hosts
+eval $(ssh-agent)
+ssh-add ~/.ssh/storm
+
+
 ```

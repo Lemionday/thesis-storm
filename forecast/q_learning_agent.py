@@ -30,7 +30,7 @@ class State:
         number_of_containers: int,
     ):
         # Discretize memory usage and spout_messages_emitted into 20 bins each
-        cpu_bin = int(np.clip(memory_percent, 0, 100) / 5)  # 0-100 to 20 bins
+        cpu_bin = int(np.clip(memory_percent, 0, 100) / 10)  # 0-100 to 20 bins
         spout_messages_emitted_bin = int(
             np.clip(spout_messages_emitted, 0, SPOUT_MESSAGES_MAX_THRESHOLD)
             / SPOUT_MESSAGES_BIN_RANGE  # 20 bins
