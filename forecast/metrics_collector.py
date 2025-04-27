@@ -62,6 +62,14 @@ class MetricsCollector:
             return [0]
         return _ret
 
+    def get_spout_messages_latency(self):
+        query = "avg_over_time(storm_spout_messages_latency[20s])"
+        results = self.prom.custom_query(query=query)
+        return np.array(
+            [record["value"][1] for record in results],
+            dtype=np.float32,
+        ).sum()
+
 
 # unit testing
 if __name__ == "__main__":

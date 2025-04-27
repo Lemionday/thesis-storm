@@ -7,17 +7,26 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 )
 
 const serviceName = "storm-supervisor"
 
 type DockerScaler struct {
 	serviceName string
+	cli         *client.Client
 }
 
 func NewDockerScaler() *DockerScaler {
+	cli, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		log.Fatalf("Failed to create Docker client: %v", err)
+	}
 	return &DockerScaler{
 		serviceName: serviceName,
+		cli:         cli,
 	}
 }
 
@@ -38,9 +47,6 @@ func (s *DockerScaler) SetNumber(machines int) (int, error) {
 		return 0, err
 	}
 
-	// time.Sleep(10 * time.Second)
-
-	rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, machines, "")
 	return s.Number()
 }
 
@@ -50,6 +56,7 @@ func (s *DockerScaler) Number() (int, error) {
 		"-c",
 		fmt.Sprintf("docker compose ps | grep %s | wc -l", s.serviceName),
 	)
+	cmd.Dir = "../"
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -71,12 +78,13 @@ func (s *DockerScaler) Number() (int, error) {
 }
 
 func dockerComposeUpScaleReplicas(replicas int) error {
+	filters := filters.NewArgs()
+	filters.Add("label", "com.docker.compose.service=storm-supervisor")
+
 	cmd := exec.Command(
-		"docker-compose",
-		"up",
-		"-d",
-		"--scale",
-		fmt.Sprintf("%s=%d", serviceName, replicas),
+		"sh",
+		"-c",
+		fmt.Sprintf("docker compose up -d --scale %s=%d", serviceName, replicas),
 	)
 	cmd.Dir = "../"
 	cmd.Stdout = os.Stdout

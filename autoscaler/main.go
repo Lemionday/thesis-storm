@@ -7,7 +7,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
+
+var setNumberTimes = 0
 
 type Scaler interface {
 	SetNumber(int) (int, error)
@@ -57,6 +60,9 @@ func scaleHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to scale containers", http.StatusInternalServerError)
 		return
 	}
+
+	time.Sleep(10 * time.Second)
+	rebalanceStormTopologyInContainer("nimbus", "iot-smarthome", 10, running, "")
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%d", running)

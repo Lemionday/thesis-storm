@@ -50,7 +50,7 @@ services:
       replicas: 2
       resources:
         limits:
-          memory: 500M
+          memory: 600M
           cpus: 1
     depends_on: [nimbus, zookeeper]
 
@@ -64,6 +64,12 @@ services:
       MARIADB_PASSWORD: Uet123
     ports: [3306:3306]
     volumes: [mysql_data:/var/lib/mysql]
+
+  mqtt-broker:
+    image: mr4x2/mqtt-broker-iotdata:v1
+    container_name: mqtt-broker
+    ports:
+      - 1883:1883
 
 volumes:
   mysql_data:

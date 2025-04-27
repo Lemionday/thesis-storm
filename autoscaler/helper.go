@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
 	"github.com/docker/docker/api/types/container"
@@ -72,6 +73,6 @@ func rebalanceStormTopologyInContainer(
 		return fmt.Errorf("command execution failed with exit code: %d", inspect.ExitCode)
 	}
 
-	fmt.Println("Topology rebalanced successfully.")
+	log.Println("Topology rebalanced successfully.")
 	return nil
 }

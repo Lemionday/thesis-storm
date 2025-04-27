@@ -20,3 +20,6 @@ copy:
 
 # 3. Full workflow
 deploy: build copy
+
+run:
+	PORT=8083 ENVIRONMENT=Docker go run .

@@ -8,3 +8,6 @@ mqtt/venv
 mqtt/debs40houses16h.tar.gz
 cloud/secrets
 cloud/scripts/setup_wireguard.sh
+training/secrets
+training
+storm-autoscaler

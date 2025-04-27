@@ -10,12 +10,12 @@ from autoscaler import AUTOSCALER_URL, Autoscaler
 from container_autoscaling_env import Action, ContainerAutoscalingEnv
 from metrics_collector import PROMETHEUS_URL, MetricsCollector
 
-NUM_EPISODES = 10
+NUM_EPISODES = 2
 LEARNING_RATE = 0.2
 DISCOUNT_FACTOR = 0.9
 INITIAL_EPSILON = 1.0
 EPSILON_DECAY_RATE = 0.01
-MIN_EPSILON = 0.01
+MIN_EPSILON = 0.05
 NUM_STATE_BINS = 10
 TARGET_MEMORY_PERCENT = 60.0
 SPOUT_MESSAGES_MAX_THRESHOLD = 25_000
@@ -51,7 +51,7 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         self,
         scaler: Autoscaler,
         metrics_collector: MetricsCollector,
-        reward_weights=(0.5, 0.3, 0.2),
+        reward_weights=(0.5, 0.7, 0.2, 0.5),
         render_mode=None,
     ):
         super().__init__(
@@ -131,8 +131,9 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         ):
             memory_penalty = 0
         else:
-            memory_penalty = (
-                -np.sqrt(np.mean((states - TARGET_MEMORY_PERCENT) ** 2)) / 40.0
+            memory_penalty = -(
+                np.sqrt(np.mean((states - TARGET_MEMORY_PERCENT) ** 2)) / 40.0
+                + np.count_nonzero(np.logical_or(states > 80, states < 20))
             )
 
         cost_penalty = -number_of_containers / self.max_containers
@@ -144,6 +145,10 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         ):
             stability_reward = 1  # slight penalty for scaling actions
 
+        spout_messages_latency_penalty = (
+            -(self.metrics_collector.get_spout_messages_latency()) / 1000
+        )
+
         self.previous_action = action
 
         if self.render_mode == "human":
@@ -151,12 +156,14 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
                 f"mem_pel: {self.reward_weights[0] * memory_penalty}"
                 + f", cost_pel: {self.reward_weights[1] * cost_penalty}"
                 + f", stab_reward: {self.reward_weights[2] * stability_reward}"
+                + f", latency_pel: {self.reward_weights[3] * spout_messages_latency_penalty}"
             )
 
         return (
             self.reward_weights[0] * memory_penalty
             + self.reward_weights[1] * cost_penalty
             + self.reward_weights[2] * stability_reward
+            + self.reward_weights[3] * spout_messages_latency_penalty
         )
 
     def render(self, mode="human"):

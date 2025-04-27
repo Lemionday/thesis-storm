@@ -5,12 +5,19 @@ ui.port: 8081
 
 supervisor.slots.ports: [6700]
 
-topology.spread.components:
-  - split-1
-  - split-5
-  - split-10
-  - split-15
-  - split-20
-  - split-30
-  - split-60
-  - split-120
+# topology.spread.components:
+#   - split-1
+#   - split-5
+#   - split-10
+#   - split-15
+#   - split-20
+#   - split-30
+#   - split-60
+#   - split-120
+
+# supervisor.memory.capacity.mb: 600
+# supervisor.cpu.capacity: 100
+# storm.supervisor.hard.memory.limit.overage.mb: 10
+# storm.scheduler: org.apache.storm.scheduler.resource.ResourceAwareScheduler
+# topology.component.resources.cpu.percent: 2
+# topology.component.resources.onheap.memory.mb: 15
