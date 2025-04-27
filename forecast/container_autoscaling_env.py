@@ -14,7 +14,7 @@ register(
     entry_point="container_autoscaling_env:ContainerAutoscalingEnv",
 )
 
-STEPS_PER_EPISODE = 100
+STEPS_PER_EPISODE = 50
 
 
 class Action(Enum):

@@ -39,7 +39,7 @@ variable "manager_internal_ip" {
 }
 
 variable "worker_internal_ips" {
-  default = ["10.148.0.21", "10.148.0.22", "10.148.0.23", "10.148.0.24", "10.148.0.25"]
+  default = ["10.148.0.21", "10.148.0.22", "10.148.0.23", "10.148.0.24", "10.148.0.25", "10.148.0.26"]
 }
 
 variable "mqtt_publisher_internal_ips" {
