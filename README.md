@@ -46,6 +46,14 @@ ssh -i .ssh/storm 10.148.0.22
 ansible supervisor -i inventory -m ping
 
 ansible all -i inventory.ini -m ansible.builtin.copy -a "src=./docker-compose.cloud.supervisor.yml dest=~/thesis-storm/docker-compose.cloud.supervisor.yml"
-ansible all -i inventory.ini -m community.docker.docker_compose_v2 -a "project_src=~/thesis-storm/docker-compose.cloud.supervisor.yml state=restarted"
+
+# Install Ansible Docker collection
+ansible-galaxy collection install community.docker
+
+# Docker compose down
+ansible all -i inventory.ini -m community.docker.docker_compose_v2 -a "project_src=~/thesis-storm/ files=docker-compose.cloud.supervisor.yml state=absent"
+
+# Docker compose up
+ansible all -i inventory.ini -m community.docker.docker_compose_v2 -a "project_src=~/thesis-storm/ files=docker-compose.cloud.supervisor.yml state=present"
 
 ```

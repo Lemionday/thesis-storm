@@ -26,7 +26,8 @@ resource "google_compute_instance" "manager" {
     [
       file("./scripts/setup_docker.sh"),
       file("./scripts/setup_wireguard.sh"),
-      file("./scripts/setup_storm.sh")
+      file("./scripts/setup_storm.sh"),
+      file("./scripts/setup_storm_manager.sh")
     ]
   )
 
@@ -100,47 +101,51 @@ resource "google_compute_instance" "worker" {
 #   tags = ["mqtt-publisher"]
 # }
 #
-# resource "google_compute_instance" "forecaster" {
-#   name         = "forecaster"
-#   machine_type = var.worker_machine_type
-#   zone         = "asia-southeast2-a"
-#
-#   boot_disk {
-#     initialize_params {
-#       image = "debian-cloud/debian-11"
-#       size  = 30
-#     }
-#   }
-#
-#   network_interface {
-#     network = "default"
-#     access_config {}
-#   }
-#
-#   metadata_startup_script = <<-EOT
-#       #!/bin/bash
-#       apt-get update
-#       apt-get install -y wireguard
-#
-#       cat <<EOF > /etc/wireguard/wg0.conf
-#       ${local.peer01_wg0_conf}
-#       EOF
-#
-#       # Enable IP forwarding
-#       echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
-#       sysctl -p
-#
-#       # Start WireGuard
-#       systemctl enable wg-quick@wg0
-#       wg-quick up wg0
-#   EOT
-#
-#   metadata = {
-#     ssh-keys = "storm:${file("./secrets/storm.pub")}"
-#   }
-#
-#   tags = ["forecaster"]
-# }
+resource "google_compute_instance" "forecaster" {
+  name         = "forecaster"
+  machine_type = var.worker_machine_type
+  zone         = "asia-southeast2-a"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+      size  = 30
+    }
+  }
+
+  network_interface {
+    network = "default"
+    access_config {}
+  }
+
+  metadata_startup_script = join("\n",
+    [
+      file("./scripts/setup_forecaster.sh"), <<-EOT
+      #!/bin/bash
+      apt-get update
+      apt-get install -y wireguard
+
+      cat <<EOF > /etc/wireguard/wg0.conf
+      ${local.peer01_wg0_conf}
+      EOF
+
+      # Enable IP forwarding
+      echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+      sysctl -p
+
+      # Start WireGuard
+      systemctl enable wg-quick@wg0
+      wg-quick up wg0
+  EOT
+    ]
+  )
+
+  metadata = {
+    ssh-keys = "storm:${file("./secrets/storm.pub")}"
+  }
+
+  tags = ["forecaster"]
+}
 
 # resource "google_compute_instance" "mosquitto" {
 #   name         = "mosquitto-vm"

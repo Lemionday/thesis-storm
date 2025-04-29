@@ -5,6 +5,13 @@ ui.port: 8081
 
 supervisor.slots.ports: [6700]
 
+storm.blacklist.scheduler.tolerance.time.secs: 30
+blacklist.scheduler.tolerance.time.secs: 30    # window to count failures
+blacklist.scheduler.tolerance.count: 1        # failures to trigger exile
+blacklist.scheduler.resume.time.secs: 30      # exile duration before return
+
+storm.local.hostname: "nimbus.thesis-storm_default"
+
 # topology.spread.components:
 #   - split-1
 #   - split-5

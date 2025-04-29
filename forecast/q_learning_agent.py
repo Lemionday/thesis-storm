@@ -139,11 +139,8 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         cost_penalty = -number_of_containers / self.max_containers
 
         stability_reward = 0
-        if (
-            self.previous_action == Action.SCALE_DOWN
-            or self.previous_action == Action.SCALE_UP
-        ):
-            stability_reward = 1  # slight penalty for scaling actions
+        if self.previous_action == Action.DO_NOTHING:
+            stability_reward = 1
 
         spout_messages_latency_penalty = (
             -(self.metrics_collector.get_spout_messages_latency()) / 1000

@@ -41,3 +41,30 @@ services:
       - ./data-file:/app/data-file
     command: "node index.js -f data-file/${CSV_FILE_5} -b ${HOST_NAME} -s ${SPEED}"
 
+  building_7:
+    image: mr4x2/mqtt-publisher:v1
+    container_name: mqtt-publisher-building-7
+    volumes:
+      - ./data-file:/app/data-file
+    command: "node index.js -f data-file/${CSV_FILE_6} -b ${HOST_NAME} -s ${SPEED}"
+
+  building_8:
+    image: mr4x2/mqtt-publisher:v1
+    container_name: mqtt-publisher-building-8
+    volumes:
+      - ./data-file:/app/data-file
+    command: "node index.js -f data-file/${CSV_FILE_7} -b ${HOST_NAME} -s ${SPEED}"
+
+  building_9:
+    image: mr4x2/mqtt-publisher:v1
+    container_name: mqtt-publisher-building-9
+    volumes:
+      - ./data-file:/app/data-file
+    command: "node index.js -f data-file/${CSV_FILE_8} -b ${HOST_NAME} -s ${SPEED}"
+
+  building_10:
+    image: mr4x2/mqtt-publisher:v1
+    container_name: mqtt-publisher-building-10
+    volumes:
+      - ./data-file:/app/data-file
+    command: "node index.js -f data-file/${CSV_FILE_9} -b ${HOST_NAME} -s ${SPEED}"
