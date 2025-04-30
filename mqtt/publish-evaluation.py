@@ -27,7 +27,7 @@ current_buildings = set()
 
 for _ in range(iterations):
     action = random.choice(["up", "down"])
-    if len(current_buildings) < 5:
+    if len(current_buildings) < 3:
         action = "up"
 
     if action == "up":
@@ -58,7 +58,7 @@ for _ in range(iterations):
 
     # Wait a random time before the next action
     delay = random.randint(*delay_range)
-    if len(current_buildings) < 5:
+    if len(current_buildings) < 3:
         delay = 1
     print(f"⏳ Waiting {delay} minutes...")
     time.sleep(delay * 60)

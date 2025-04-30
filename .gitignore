@@ -11,3 +11,5 @@ cloud/scripts/setup_wireguard.sh
 training/secrets
 training
 storm-autoscaler
+forecast/q_table.npy
+forecast/results.png
