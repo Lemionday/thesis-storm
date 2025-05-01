@@ -16,7 +16,6 @@ services:
     restart: always
     command: [storm, nimbus]
     volumes:
-      - ./config/hosts:/etc/hosts:ro
       - ./config/storm.yml:/conf/storm.yaml
       - ./stormsmarthome/target/:/topologies/:ro
     depends_on: [zookeeper]
@@ -33,7 +32,6 @@ services:
     restart: always
     command: [storm, ui]
     volumes:
-      - ./config/hosts:/etc/hosts:ro
       - ./config/storm.yml:/conf/storm.yaml
     ports: [8081:8081]
     depends_on: [zookeeper, nimbus]
@@ -44,13 +42,12 @@ services:
     restart: always
     command: [storm, supervisor]
     volumes:
-      - ./config/hosts:/etc/hosts:ro
       - ./config/storm.yml:/conf/storm.yaml
     deploy:
       replicas: 2
       resources:
         limits:
-          memory: 600M
+          memory: 500M
           cpus: 1
     depends_on: [nimbus, zookeeper]
 

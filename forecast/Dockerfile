@@ -48,4 +48,4 @@ COPY . .
 EXPOSE 8000
 
 # Run the application.
-CMD python3 q_learning_agent.py
+CMD python3 deep_q_learning_agent.py

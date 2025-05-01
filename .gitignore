@@ -11,3 +11,7 @@ cloud/scripts/setup_wireguard.sh
 training/secrets
 training
 storm-autoscaler
+forecast/results
+forecast/runs
+forecast/unused
+mqtt/building_publishers.csv

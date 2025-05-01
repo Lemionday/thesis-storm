@@ -19,7 +19,7 @@ signal.signal(signal.SIGINT, lambda sig, frame: down_all())
 
 # Settings
 # building_1 to building_10
-buildings = [f"building_{i}" for i in range(1, 11)]
+buildings = [f"building_{i}" for i in range(1, 7)]
 iterations = 20  # How many random actions to perform
 delay_range = (5, 10)  # Random delay between actions, in seconds
 
@@ -27,8 +27,10 @@ current_buildings = set()
 
 for _ in range(iterations):
     action = random.choice(["up", "down"])
-    if len(current_buildings) < 5:
+    if len(current_buildings) < 3:
         action = "up"
+    if len(current_buildings) > 5:
+        action = "down"
 
     if action == "up":
         available_buildings = list(set(buildings) - current_buildings)
