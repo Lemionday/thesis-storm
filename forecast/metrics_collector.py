@@ -7,7 +7,7 @@ PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 
 
 class MetricsCollector:
-    def __init__(self, url):
+    def __init__(self, url=PROMETHEUS_URL):
         try:
             self.prom = PrometheusConnect(
                 url=url, disable_ssl=True
