@@ -10,21 +10,4 @@ blacklist.scheduler.tolerance.time.secs: 30    # window to count failures
 blacklist.scheduler.tolerance.count: 1        # failures to trigger exile
 blacklist.scheduler.resume.time.secs: 30      # exile duration before return
 
-storm.local.hostname: "nimbus.thesis-storm_default"
-
-# topology.spread.components:
-#   - split-1
-#   - split-5
-#   - split-10
-#   - split-15
-#   - split-20
-#   - split-30
-#   - split-60
-#   - split-120
-
-# supervisor.memory.capacity.mb: 600
-# supervisor.cpu.capacity: 100
-# storm.supervisor.hard.memory.limit.overage.mb: 10
-# storm.scheduler: org.apache.storm.scheduler.resource.ResourceAwareScheduler
-# topology.component.resources.cpu.percent: 2
-# topology.component.resources.onheap.memory.mb: 15
+# storm.local.hostname: "nimbus.thesis-storm_default"

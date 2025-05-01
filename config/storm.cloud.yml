@@ -6,5 +6,5 @@ ui.port: 8081
 supervisor.slots.ports:
   - 6700  # Define a single port for the 1 CPU slot
 
-supervisor.memory.capacity.mb: 600
+supervisor.memory.capacity.mb: 500
 supervisor.cpu.capacity: 100
