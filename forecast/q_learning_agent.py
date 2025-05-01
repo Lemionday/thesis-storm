@@ -4,20 +4,14 @@ from collections import defaultdict, deque
 
 import gymnasium as gym
 import numpy as np
-from matplotlib import pyplot as plt
 
 from autoscaler import AUTOSCALER_URL, Autoscaler
-from container_autoscaling_env import Action, ContainerAutoscalingEnv
+from container_autoscaling_env import NUM_EPISODES, Action, ContainerAutoscalingEnv
+from epsilon_greedy_strategy import EpsilonGreedyStrategy
 from metrics_collector import PROMETHEUS_URL, MetricsCollector
+from plot_result import plot_result
 
-NUM_EPISODES = 2
-LEARNING_RATE = 0.2
-DISCOUNT_FACTOR = 0.9
-INITIAL_EPSILON = 1.0
-EPSILON_DECAY_RATE = 0.01
-MIN_EPSILON = 0.05
 NUM_STATE_BINS = 10
-TARGET_MEMORY_PERCENT = 60.0
 SPOUT_MESSAGES_MAX_THRESHOLD = 25_000
 SPOUT_MESSAGES_BIN_RANGE = 1250  # 25_000 / (10*60) * 30
 
@@ -51,7 +45,6 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         self,
         scaler: Autoscaler,
         metrics_collector: MetricsCollector,
-        reward_weights=(0.5, 0.7, 0.2, 0.5),
         render_mode=None,
     ):
         super().__init__(
@@ -70,9 +63,8 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
             ),
             dtype=np.int64,
         )  # [memory_percent, spout_messages_emitted, num_containers]
-        self.reward_weights = reward_weights
 
-    def _get_current_state(self):
+    def _get_observation(self):
         avg_mem_percent = np.mean(
             self.metrics_collector.get_mem_percent(), dtype=np.float32
         )
@@ -83,15 +75,10 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         num_containers = self.scaler.get_number_of_containers()
 
         return State(
-            memory_percent=avg_mem_percent,
+            memory_percent=avg_mem_percent / 100.0,
             spout_messages_emitted=spout_messages_emitted,
             number_of_containers=num_containers,
         )
-
-    def reset(self, *, seed=None, options=None):
-        super().reset(seed=seed, options=options)
-
-        return self._get_current_state(), {}
 
     def step(self, action: Action):
         """
@@ -105,7 +92,7 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         """
         self.time_counter += 1
 
-        self.state = self._get_current_state()
+        self.state = self._get_observation()
 
         reward = self._calculate_reward(action)
 
@@ -120,48 +107,6 @@ class QLearningContainerAutoscalingEnv(ContainerAutoscalingEnv):
         info = {"out_of_bound": out_of_bound}
 
         return self.state, reward, terminated, False, info
-
-    def _calculate_reward(self, action: Action):
-        """Calculates the reward based on current state."""
-        states = self.metrics_collector.get_mem_percent()
-        number_of_containers = len(states)
-        if (
-            number_of_containers == self.min_containers
-            and np.mean(states, dtype=np.float32) < TARGET_MEMORY_PERCENT
-        ):
-            memory_penalty = 0
-        else:
-            memory_penalty = -(
-                np.sqrt(np.mean((states - TARGET_MEMORY_PERCENT) ** 2)) / 40.0
-                + np.count_nonzero(np.logical_or(states > 80, states < 20))
-            )
-
-        cost_penalty = -number_of_containers / self.max_containers
-
-        stability_reward = 0
-        if self.previous_action == Action.DO_NOTHING:
-            stability_reward = 1
-
-        spout_messages_latency_penalty = (
-            -(self.metrics_collector.get_spout_messages_latency()) / 1000
-        )
-
-        self.previous_action = action
-
-        if self.render_mode == "human":
-            print(
-                f"mem_pel: {self.reward_weights[0] * memory_penalty}"
-                + f", cost_pel: {self.reward_weights[1] * cost_penalty}"
-                + f", stab_reward: {self.reward_weights[2] * stability_reward}"
-                + f", latency_pel: {self.reward_weights[3] * spout_messages_latency_penalty}"
-            )
-
-        return (
-            self.reward_weights[0] * memory_penalty
-            + self.reward_weights[1] * cost_penalty
-            + self.reward_weights[2] * stability_reward
-            + self.reward_weights[3] * spout_messages_latency_penalty
-        )
 
     def render(self, mode="human"):
         """Renders the environment."""
@@ -178,41 +123,33 @@ class QLearningAgent:
         env: QLearningContainerAutoscalingEnv,
         learning_rate: float,
         discount_factor: float,
-        initial_epsilon: float,
-        epsilon_decay_rate: float,
-        min_epsilon: float,
         num_memory_percent_bins: int,
         num_spout_messages_emitted_bins: int,
         q_values=None,
     ):
-        self.rng = np.random.default_rng()
-
         self.observation_space = env.observation_space
         self.action_space = env.action_space
 
         self.lr = learning_rate
         self.discount_factor = discount_factor
 
-        self.epsilon = initial_epsilon
-        self.epsilon_decay_rate = epsilon_decay_rate
-        self.min_epsilon = min_epsilon
-
         self.q_values = defaultdict(lambda: np.zeros(env.action_space.n))
+        self.epsilon_strategy = EpsilonGreedyStrategy(learning=False)
         if q_values is not None:
             self.q_values.update(q_values)
 
             # Start exploiting but preserve some explore
-            self.epsilon = min_epsilon
+            self.epsilon_strategy = EpsilonGreedyStrategy(learning=True)
 
         self.training_error = [1]
 
     def select_action(self, state: State):
-        if self.rng.random() < self.epsilon:
+        if self.epsilon_strategy.isNextActionExplore():
             action = self.action_space.sample()  # Explore
-            print("Explore")
         else:
             action = np.argmax(self.q_values[state.value])  # Exploit
-            print("Exploit")
+
+        self.epsilon_strategy.decay_epsilon()
 
         return Action(action)
 
@@ -230,11 +167,6 @@ class QLearningAgent:
             self.q_values[state.value][action.value] + self.lr * temporal_difference
         )
         self.training_error.append(temporal_difference)
-
-    def decay_epsilon(self):
-        self.epsilon = max(
-            self.min_epsilon, self.epsilon * (1 - self.epsilon_decay_rate)
-        )
 
     def get_q_values(self):
         return dict(self.q_values)
@@ -273,7 +205,6 @@ async def train_agent(
                     reward=reward,
                 )
 
-            agent.decay_epsilon()
             await asyncio.sleep(30)
 
     return agent
@@ -287,7 +218,7 @@ if __name__ == "__main__":
     )
 
     q_table = None
-    q_table_path = "q_table.npy"  # Define the path to save/load Q-table
+    q_table_path = "results/q_table.npy"
     # Check if Q-table exists, load if it does.
     if os.path.exists(q_table_path):
         q_table = np.load(file=q_table_path, allow_pickle=True).item()
@@ -296,11 +227,8 @@ if __name__ == "__main__":
 
     agent = QLearningAgent(
         env=env,
-        learning_rate=LEARNING_RATE,
-        discount_factor=DISCOUNT_FACTOR,
-        initial_epsilon=INITIAL_EPSILON,
-        epsilon_decay_rate=EPSILON_DECAY_RATE,
-        min_epsilon=MIN_EPSILON,
+        learning_rate=0.1,
+        discount_factor=0.9,
         num_spout_messages_emitted_bins=20,
         num_memory_percent_bins=20,
         q_values=q_table,
@@ -312,27 +240,4 @@ if __name__ == "__main__":
     print(f"Q-table saved to {q_table_path}")
     print()
 
-    def get_moving_avgs(arr, window, convolution_mode):
-        return (
-            np.convolve(np.array(arr).flatten(), np.ones(window), mode=convolution_mode)
-            / window
-        )
-
-    # Smooth over a 5 episode window
-    rolling_length = 20
-    fig, axs = plt.subplots(ncols=2, figsize=(12, 5))
-
-    axs[0].set_title("Episode rewards")
-    reward_moving_average = get_moving_avgs(env.return_queue, rolling_length, "valid")
-    axs[0].plot(range(len(reward_moving_average)), reward_moving_average)
-
-    axs[1].set_title("Training Error")
-    training_error_moving_average = get_moving_avgs(
-        agent.training_error, rolling_length, "same"
-    )
-    axs[1].plot(
-        range(len(training_error_moving_average)), training_error_moving_average
-    )
-    plt.tight_layout()
-    # plt.show()
-    plt.savefig("results.png")
+    plot_result(env.return_queue, agent.training_error)

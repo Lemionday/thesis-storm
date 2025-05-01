@@ -15,8 +15,9 @@ class Autoscaler:
         url (str): The URL of the endpoint.
     """
 
-    def __init__(self, url):
+    def __init__(self, url=AUTOSCALER_URL, is_testing=False):
         self.url = url + "/scale"
+        self.is_testing = is_testing
 
     def _make_request(self, replicas: int = 0):
         try:
@@ -44,6 +45,9 @@ class Autoscaler:
             return None
 
     def set_number_of_containers(self, replicas: int):
+        if self.is_testing:
+            return replicas
+
         if replicas < 2 or replicas > 5:
             return None
 

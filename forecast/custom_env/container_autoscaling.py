@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from collections import deque
 from enum import Enum
 
@@ -14,21 +15,19 @@ register(
     entry_point="container_autoscaling_env:ContainerAutoscalingEnv",
 )
 
-STEPS_PER_EPISODE = 50
+NUM_EPISODES = 1
+STEPS_PER_EPISODE = 20
+
+TARGET_MEMORY_PERCENT = 60.0
+
+LEARNING_RATE = 0.2
+DISCOUNT_FACTOR = 0.9
 
 
 class Action(Enum):
     DO_NOTHING = 0
     SCALE_UP = 1
     SCALE_DOWN = 2
-
-
-def discretize_state(state):
-    # Discretize CPU utilization and latency into 20 bins each
-    cpu_bin = int(np.clip(state[0], 0, 100) / 5)  # 0-100 to 20 bins
-    latency_bin = int(np.clip(state[1], 0, 1000) / 50)  # 0-1000 to 20 bins
-    containers = int(state[2])
-    return np.array([cpu_bin, latency_bin, containers])
 
 
 class ContainerAutoscalingEnv(gym.Env):
@@ -45,10 +44,12 @@ class ContainerAutoscalingEnv(gym.Env):
         self,
         scaler: Autoscaler,
         metrics_collector: MetricsCollector,
+        target_memory_percent=TARGET_MEMORY_PERCENT,
         min_containers=2,
         max_containers=5,
         render_mode=None,
-    ):  # Weights for (latency, cost, stability)
+        reward_weights=(0.5, 0.7, 0.2, 0.5),  # Weights for (latency, cost, stability)
+    ):
         super().__init__()
 
         self.render_mode = render_mode
@@ -59,11 +60,17 @@ class ContainerAutoscalingEnv(gym.Env):
         # Environment parameters
         self.max_containers = max_containers
         self.min_containers = min_containers
+        self.target_memory_percent = target_memory_percent
+        self.reward_weights = reward_weights
 
         self.metrics_collector = metrics_collector
         self.scaler = scaler
 
         self.return_queue = []
+
+        self.previous_action = Action.DO_NOTHING
+
+        self.previous_spout_messages_emitted = 0
 
         self.reset()
 
@@ -75,19 +82,19 @@ class ContainerAutoscalingEnv(gym.Env):
         self.previous_action = Action.DO_NOTHING
         self.time_counter = 0
 
+        return self._get_observation(), {}
+
     def _perform_action(self, action: Action) -> bool:
+        self.time_counter += 1
+
         current_containers = self.scaler.get_number_of_containers()
         if current_containers is None:
             print("Error getting current number of containers")
 
-        out_of_bound = False
         if action == Action.SCALE_UP and current_containers == self.max_containers:
-            out_of_bound = True
+            return True
 
         if action == Action.SCALE_DOWN and current_containers == self.min_containers:
-            out_of_bound = True
-
-        if out_of_bound:
             return True
 
         if action == Action.SCALE_UP:
@@ -99,9 +106,54 @@ class ContainerAutoscalingEnv(gym.Env):
 
         return False
 
+    def _calculate_reward(self, action: Action):
+        states = self.metrics_collector.get_mem_percent()
+        number_of_containers = len(states)
+        if (
+            number_of_containers == self.min_containers
+            and np.mean(states, dtype=np.float32) < self.target_memory_percent
+        ):
+            memory_penalty = 0
+        else:
+            memory_penalty = -(
+                np.sqrt(np.mean((states - self.target_memory_percent) ** 2)) / 40.0
+                + np.count_nonzero(np.logical_or(states > 80, states < 20))
+            )
+
+        cost_penalty = -number_of_containers / self.max_containers
+
+        stability_reward = 0
+        if self.previous_action == Action.DO_NOTHING:
+            stability_reward = 1
+
+        spout_messages_latency_penalty = (
+            -(self.metrics_collector.get_spout_messages_latency()) / 1000
+        )
+
+        self.previous_action = action
+
+        if self.render_mode == "human":
+            print(
+                f"mem_pel: {self.reward_weights[0] * memory_penalty}"
+                + f", cost_pel: {self.reward_weights[1] * cost_penalty}"
+                + f", stab_reward: {self.reward_weights[2] * stability_reward}"
+                + f", latency_pel: {self.reward_weights[3] * spout_messages_latency_penalty}"
+            )
+
+        return (
+            self.reward_weights[0] * memory_penalty
+            + self.reward_weights[1] * cost_penalty
+            + self.reward_weights[2] * stability_reward
+            + self.reward_weights[3] * spout_messages_latency_penalty
+        )
+
     def _is_done(self):
         """Checks if the episode is done."""
         return self.time_counter > STEPS_PER_EPISODE  # Arbitrary episode length
+
+    @abstractmethod
+    def _get_observation(self):
+        pass
 
 
 if __name__ == "__main__":
