@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import itertools
-import os
 import random
 from datetime import datetime, timedelta
 
@@ -10,32 +9,28 @@ import torch
 import yaml
 from torch import nn
 
+from agent import Agent
 from autoscaler import Autoscaler
 from custom_env.container_autoscaling import Action
 from dq_learning.dqn import DQN
 from dq_learning.env import DeepQLearningEnv
 from dq_learning.replay_memory import ReplayMemory
-from helpers.logs import RUNS_DIR, Log
+from helpers.logs import Log
 from metrics_collector import MetricsCollector
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = "cpu"  # force cpu
 
 
-class DQAgent:
+class DQAgent(Agent):
     def __init__(
         self,
         env: DeepQLearningEnv,
         is_training=False,
     ):
-        self.env = env
+        super().__init__(env, is_training=is_training, hyper_parameters_set="deepscale")
 
-        self.is_training = is_training
-        self.hyper_parameters_set = "deepscale"
         self.load_hyperparameters(self.hyper_parameters_set)
-
-        self.MODEL_FILE = os.path.join(RUNS_DIR, f"{self.hyper_parameters_set}.pt")
-        self.GRAPH_FILE = os.path.join(RUNS_DIR, f"{self.hyper_parameters_set}.png")
 
         self.logger = Log(self.hyper_parameters_set)
 
@@ -63,13 +58,6 @@ class DQAgent:
             self.optimizer = torch.optim.Adam(
                 self.policy_dqn.parameters(), lr=self.learning_rate
             )
-
-            self.epsilon_hist = []
-
-            # Track best reward
-            self.best_reward = -9999999
-
-            self.current_time = datetime.now()
         else:
             # Load learned policy
             self.policy_dqn.load_state_dict(torch.load(self.MODEL_FILE))
@@ -79,13 +67,8 @@ class DQAgent:
 
         self.loss_fn = nn.MSELoss()
 
-        self.rewards = []
-
     async def train(self):
-        if self.is_training:
-            self.last_graph_update_time = datetime.now()
-
-            self.logger.start_training()
+        await super().train()
 
         for episode in itertools.count():
             state, _ = self.env.reset()
@@ -97,7 +80,6 @@ class DQAgent:
 
             while not terminated:
                 action = self.select_action(state)
-                # self.env._perform_action(action)
 
                 # Observe new state
                 next_state, reward, terminated, _, info = self.env.step(action)
@@ -140,13 +122,11 @@ class DQAgent:
                     if self.env.time_counter % self.network_sync_rate == 0:
                         self.target_dqn.load_state_dict(self.policy_dqn.state_dict())
 
-                self.decay_epsilon()
-
-                self.update_graph()
-
                 await asyncio.sleep(30)
 
+            self.decay_epsilon()
             self.rewards.append(episode_reward)
+            self.update_graph()
             self.save_model(episode=episode, episode_reward=episode_reward)
 
     def optimize(self, batch):
@@ -179,13 +159,6 @@ class DQAgent:
         self.optimizer.zero_grad()  # Clear gradients
         loss.backward()  # Compute gradients
         self.optimizer.step()  # Update network parameters
-
-    def decay_epsilon(self):
-        self.epsilon = max(
-            self.epsilon_min,
-            self.epsilon * self.epsilon_decay,
-        )
-        self.epsilon_hist.append(self.epsilon)
 
     def save_model(self, episode, episode_reward):
         # Save model when new best reward is obtained.
@@ -229,35 +202,7 @@ class DQAgent:
 
         return Action(action)
 
-    def update_graph(self):
-        current_time = datetime.now()
 
-        if current_time - self.last_graph_update_time < timedelta(
-            seconds=self.graph_update_interval
-        ):
-            return
-
-        self.last_graph_update_time = current_time
-
-        fig = plt.figure(1)
-
-        # Plot rewards (Y-axis) vs episodes (X-axis)
-        plt.subplot(121)  # plot on a 1 row x 2 col grid, at cell 1
-        plt.xlabel("Episodes")
-        plt.ylabel("Mean Rewards")
-        plt.plot(self.rewards)
-
-        # Plot epsilon decay (Y-axis) vs episodes (X-axis)
-        plt.subplot(122)  # plot on a 1 row x 2 col grid, at cell 2
-        plt.xlabel("Time Steps")
-        plt.ylabel("Epsilon Decay")
-        plt.plot(self.epsilon_hist)
-
-        plt.subplots_adjust(wspace=1.0, hspace=1.0)
-
-        # Save plots
-        fig.savefig(self.GRAPH_FILE)
-        plt.close(fig)
 
 
 if __name__ == "__main__":

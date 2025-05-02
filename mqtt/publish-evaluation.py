@@ -20,10 +20,14 @@ signal.signal(signal.SIGINT, lambda sig, frame: down_all())
 # Settings
 # building_1 to building_10
 buildings = [f"building_{i}" for i in range(1, 7)]
-iterations = 20  # How many random actions to perform
+iterations = 50  # How many random actions to perform
 delay_range = (5, 10)  # Random delay between actions, in seconds
 
-current_buildings = set()
+
+subprocess.run(
+    f"docker compose up -d {buildings[0]} {buildings[2]} {buildings[5]}", shell=True
+)
+current_buildings = set([buildings[0], buildings[2], buildings[5]])
 
 for _ in range(iterations):
     action = random.choice(["up", "down"])

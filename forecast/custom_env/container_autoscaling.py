@@ -38,7 +38,6 @@ class ContainerAutoscalingEnv(gym.Env):
     delay_buffer: deque
     min_containers: int
     max_containers: int
-    return_queue: list[int]
 
     def __init__(
         self,
@@ -65,8 +64,6 @@ class ContainerAutoscalingEnv(gym.Env):
 
         self.metrics_collector = metrics_collector
         self.scaler = scaler
-
-        self.return_queue = []
 
         self.previous_action = Action.DO_NOTHING
 
