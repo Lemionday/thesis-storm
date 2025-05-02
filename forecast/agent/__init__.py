@@ -51,22 +51,42 @@ class Agent:
 
         self.last_graph_update_time = current_time
 
-        fig = plt.figure(1)
+        # fig = plt.figure(1)
+        #
+        # # Plot rewards (Y-axis) vs episodes (X-axis)
+        # plt.subplot(121)  # plot on a 1 row x 2 col grid, at cell 1
+        # plt.xlabel("Episodes")
+        # plt.ylabel("Mean Rewards")
+        # plt.plot(self.rewards)
+        #
+        # # Plot epsilon decay (Y-axis) vs episodes (X-axis)
+        # plt.subplot(122)  # plot on a 1 row x 2 col grid, at cell 2
+        # plt.xlabel("Time Steps")
+        # plt.ylabel("Epsilon Decay")
+        # plt.plot(self.epsilon_hist)
+        #
+        # plt.subplots_adjust(wspace=1.0, hspace=1.0)
 
-        # Plot rewards (Y-axis) vs episodes (X-axis)
-        plt.subplot(121)  # plot on a 1 row x 2 col grid, at cell 1
-        plt.xlabel("Episodes")
-        plt.ylabel("Mean Rewards")
-        plt.plot(self.rewards)
+        # Create a figure and 2 subplots in 1 row, 2 columns
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
-        # Plot epsilon decay (Y-axis) vs episodes (X-axis)
-        plt.subplot(122)  # plot on a 1 row x 2 col grid, at cell 2
-        plt.xlabel("Time Steps")
-        plt.ylabel("Epsilon Decay")
-        plt.plot(self.epsilon_hist)
+        # Plot rewards vs episodes
+        ax1.set_xlabel("Episodes")
+        ax1.set_ylabel("Mean Rewards")
+        ax1.plot(self.rewards)
+        ax1.set_title("Reward Progression")
 
-        plt.subplots_adjust(wspace=1.0, hspace=1.0)
+        # Plot epsilon decay vs time steps
+        ax2.set_xlabel("Time Steps")
+        ax2.set_ylabel("Epsilon Decay")
+        ax2.plot(self.epsilon_hist)
+        ax2.set_title("Epsilon Decay Over Time")
 
+        # Adjust spacing between subplots
+        fig.subplots_adjust(wspace=0.4)
+
+        # Optional: add a global title
+        fig.suptitle("Training Results", fontsize=16)
         # Save plots
         fig.savefig(self.GRAPH_FILE)
         plt.close(fig)

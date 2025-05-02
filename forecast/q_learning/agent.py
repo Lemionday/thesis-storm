@@ -10,14 +10,13 @@ import yaml
 from agent import Agent
 from autoscaler import Autoscaler
 from custom_env.container_autoscaling import Action
+from helpers.logs import RUNS_DIR
 from metrics_collector import MetricsCollector
 from q_learning.env import QLearningEnv
 from q_learning.state import State
 
 
 class QLearningAgent(Agent):
-    q_table_path = "results/q_table.npy"
-
     def __init__(
         self,
         env: QLearningEnv,
@@ -35,6 +34,7 @@ class QLearningAgent(Agent):
 
         self.q_values = defaultdict(lambda: np.zeros(n_actions))
 
+        self.MODEL_FILE = os.path.join(RUNS_DIR, f"{self.hyper_parameters_set}.npy")
         if os.path.exists(self.MODEL_FILE):
             self.load_q_table()
 
@@ -116,10 +116,10 @@ class QLearningAgent(Agent):
             self.update_graph()
 
     def save_q_table(self):
-        np.save(self.q_table_path, dict(self.q_values))
+        np.save(self.MODEL_FILE, dict(self.q_values))
 
     def load_q_table(self):
-        q_table = np.load(file=self.q_table_path, allow_pickle=True).item()
+        q_table = np.load(file=self.MODEL_FILE, allow_pickle=True).item()
         self.q_values.update(q_table)
 
 
