@@ -73,5 +73,5 @@ class MetricsCollector:
 
 # unit testing
 if __name__ == "__main__":
-    mc = MetricsCollector(PROMETHEUS_URL)
+    mc = MetricsCollector(url=PROMETHEUS_URL)
     print(mc.get_mem_percent())
