@@ -2,9 +2,7 @@ import argparse
 import asyncio
 import itertools
 import random
-from datetime import datetime, timedelta
 
-import matplotlib.pyplot as plt
 import torch
 import yaml
 from torch import nn
@@ -58,6 +56,7 @@ class DQAgent(Agent):
             self.optimizer = torch.optim.Adam(
                 self.policy_dqn.parameters(), lr=self.learning_rate
             )
+            self.last_episode = 0
         else:
             # Load learned policy
             self.policy_dqn.load_state_dict(torch.load(self.MODEL_FILE))
@@ -165,7 +164,7 @@ class DQAgent(Agent):
         if not self.is_training:
             return
 
-        if episode_reward > self.best_reward:
+        if episode_reward > self.best_reward or self.last_episode + 2 < episode:
             self.logger.new_best_reward(
                 episode=episode,
                 episode_reward=episode_reward,
@@ -174,6 +173,7 @@ class DQAgent(Agent):
 
             torch.save(self.policy_dqn.state_dict(), self.MODEL_FILE)
             self.best_reward = episode_reward
+            self.last_episode = episode
 
     def load_hyperparameters(self, hyper_parameters_set):
         with open("hyper-parameters.yml", "r") as f:
@@ -201,8 +201,6 @@ class DQAgent(Agent):
                 )
 
         return Action(action)
-
-
 
 
 if __name__ == "__main__":

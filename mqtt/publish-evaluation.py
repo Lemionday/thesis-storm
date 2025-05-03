@@ -30,7 +30,7 @@ subprocess.run(
 current_buildings = set([buildings[0], buildings[2], buildings[5]])
 
 for _ in range(iterations):
-    action = random.choice(["up", "down"])
+    action = random.choice(["up", "down", "do_nothing"])
     if len(current_buildings) < 3:
         action = "up"
     if len(current_buildings) > 5:
@@ -54,13 +54,14 @@ for _ in range(iterations):
 
         current_buildings.remove(building)
 
-    print(f"🔧 Executing: {cmd}")
-    print(current_buildings)
-    with open("building_publishers.csv", "a", newline="") as f:
-        write = csv.writer(f)
-        write.writerow(current_buildings)
+    if action !="do_nothing":
+        print(f"🔧 Executing: {cmd}")
+        print(current_buildings)
+        with open("building_publishers.csv", "a", newline="") as f:
+            write = csv.writer(f)
+            write.writerow(current_buildings)
 
-    subprocess.run(cmd, shell=True)
+        subprocess.run(cmd, shell=True)
 
     # Wait a random time before the next action
     delay = random.randint(*delay_range)
