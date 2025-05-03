@@ -64,10 +64,14 @@ func fetchAndTransform(url string, index int, sm *supervisorMetrics) {
 	}
 
 	isZero := true
+	isCPUZero := true
 	supervisorID := fmt.Sprintf("%d", index)
 	defer func() {
 		if isZero {
 			sm.MemoryPercent.WithLabelValues(supervisorID).Set(0)
+		}
+		if isCPUZero {
+			sm.CPUPercent.WithLabelValues(supervisorID).Set(0)
 		}
 	}()
 
@@ -80,12 +84,28 @@ func fetchAndTransform(url string, index int, sm *supervisorMetrics) {
 					value := m.Gauge.GetValue()
 					sm.MemoryPercent.WithLabelValues(supervisorID).Set(value)
 					isZero = false
-					return
+					break
 				}
 			}
 		}
 	} else {
 		log.Printf("Metric cxp_memory_percentage not found in %s", url)
+	}
+
+	if mf, ok := metricFamilies["cxp_cpu_percentage"]; ok {
+		for _, m := range mf.Metric {
+			for _, label := range m.Label {
+				if label.GetName() == "container_name" &&
+					label.GetValue() == "thesis-storm-storm-supervisor-1" {
+					value := m.Gauge.GetValue()
+					sm.CPUPercent.WithLabelValues(supervisorID).Set(value)
+					isCPUZero = false
+					return
+				}
+			}
+		}
+	} else {
+		log.Printf("Metric cxp_cpu_percentage not found in %s", url)
 	}
 }
 
