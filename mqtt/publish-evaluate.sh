@@ -1,11 +1,11 @@
 #!/bin/bash
 
 commands=(
-  "docker compose up -d building_7 building_8"
+  "docker compose up -d building_1 building_2"
   "docker compose up -d building_3 building_6"
   "docker compose up -d building_4 building_5"
   "docker compose down building_4 building_6"
-  "docker compose down building_3 building_5"
+  "docker compose down building_3 building_2"
   "docker compose down"
   )
 

@@ -217,5 +217,5 @@ if __name__ == "__main__":
     parser.add_argument("--train", help="Training mode", action="store_true")
     args = parser.parse_args()
 
-    agent = DQAgent(env=env, is_training=args.train)
+    agent = DQAgent(env=env, is_training=True)
     asyncio.run(agent.train())
