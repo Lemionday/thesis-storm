@@ -21,7 +21,7 @@ for cmd in "${commands[@]}"; do
   eval "$cmd"
 
   echo "⏳ Sleeping for 10 minutes..."
-  sleep 600  # 20 minutes = 1200 seconds
+  sleep 300  # 20 minutes = 1200 seconds
 done
 
 echo "✨ All commands completed. Rest well, script traveler."

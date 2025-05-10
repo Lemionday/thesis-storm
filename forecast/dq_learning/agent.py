@@ -66,6 +66,8 @@ class DQAgent(Agent):
 
         self.loss_fn = nn.MSELoss()
 
+        self.steps_counter = 0
+
     async def train(self):
         await super().train()
 
@@ -100,6 +102,7 @@ class DQAgent(Agent):
                     dtype=torch.long,
                     device=device,
                 )
+
                 if self.is_training:
                     self.memory.append(
                         (
@@ -111,22 +114,30 @@ class DQAgent(Agent):
                         )
                     )
 
+                    if len(self.memory) > self.batch_size:
+                        batch = self.memory.sample(self.batch_size)
+
+                        self.optimize(batch)
+
+                        if self.env.time_counter % self.network_sync_rate == 0:
+                            self.target_dqn.load_state_dict(
+                                self.policy_dqn.state_dict()
+                            )
+
+                # move to next state
                 state = next_state
 
-                if len(self.memory) > self.batch_size:
-                    batch = self.memory.sample(self.batch_size)
+                self.decay_epsilon()
 
-                    self.optimize(batch)
+                self.update_graph()
 
-                    if self.env.time_counter % self.network_sync_rate == 0:
-                        self.target_dqn.load_state_dict(self.policy_dqn.state_dict())
+                self.rewards.append(reward.cpu())
+
+                self.steps_counter += 1
+
+                self.save_model(episode=episode, episode_reward=episode_reward)
 
                 await asyncio.sleep(30)
-
-            self.decay_epsilon()
-            self.rewards.append(episode_reward)
-            self.update_graph()
-            self.save_model(episode=episode, episode_reward=episode_reward)
 
     def optimize(self, batch):
         # print("optimize neural network")
@@ -164,16 +175,18 @@ class DQAgent(Agent):
         if not self.is_training:
             return
 
-        if episode_reward > self.best_reward or self.last_episode + 2 < episode:
-            self.logger.new_best_reward(
-                episode=episode,
-                episode_reward=episode_reward,
-                best_reward=self.best_reward,
-            )
-
+        # if episode_reward > self.best_reward or self.last_episode + 2 < episode:
+        #     self.logger.new_best_reward(
+        #         episode=episode,
+        #         episode_reward=episode_reward,
+        #         best_reward=self.best_reward,
+        #     )
+        #
+        #     torch.save(self.policy_dqn.state_dict(), self.MODEL_FILE)
+        #     self.best_reward = episode_reward
+        #     self.last_episode = episode
+        if self.steps_counter % 10 == 0:
             torch.save(self.policy_dqn.state_dict(), self.MODEL_FILE)
-            self.best_reward = episode_reward
-            self.last_episode = episode
 
     def load_hyperparameters(self, hyper_parameters_set):
         with open("hyper-parameters.yml", "r") as f:
@@ -185,6 +198,10 @@ class DQAgent(Agent):
             self.epsilon = hyper_parameters["epsilon_init"]
             self.epsilon_decay = hyper_parameters["epsilon_decay"]
             self.epsilon_min = hyper_parameters["epsilon_min"]
+            if not self.is_training:
+                self.epsilon = self.epsilon_min
+                self.is_training = True
+
             self.learning_rate = hyper_parameters["learning_rate"]
             self.discount_factor = hyper_parameters["discount_factor"]
             self.network_sync_rate = hyper_parameters["network_sync_rate"]
@@ -217,5 +234,5 @@ if __name__ == "__main__":
     parser.add_argument("--train", help="Training mode", action="store_true")
     args = parser.parse_args()
 
-    agent = DQAgent(env=env, is_training=True)
+    agent = DQAgent(env=env, is_training=args.train)
     asyncio.run(agent.train())

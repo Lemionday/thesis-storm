@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import itertools
 import os
@@ -54,6 +55,9 @@ class QLearningAgent(Agent):
             self.epsilon = hyper_parameters["epsilon_init"]
             self.epsilon_decay = hyper_parameters["epsilon_decay"]
             self.epsilon_min = hyper_parameters["epsilon_min"]
+            if not self.is_training:
+                self.is_training = True
+                self.epsilon = self.epsilon_min
             self.learning_rate = hyper_parameters["learning_rate"]
             self.discount_factor = hyper_parameters["discount_factor"]
             self.graph_update_interval = hyper_parameters["graph_update_interval"]
@@ -130,6 +134,9 @@ if __name__ == "__main__":
         metrics_collector=MetricsCollector(),
     )
 
-    agent = QLearningAgent(env=env, is_training=True)
+    parser = argparse.ArgumentParser(description="Train or test model.")
+    parser.add_argument("--train", help="Training mode", action="store_true")
+    args = parser.parse_args()
+    agent = QLearningAgent(env=env, is_training=args.train)
 
     asyncio.run(agent.train())

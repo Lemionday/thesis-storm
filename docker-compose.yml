@@ -47,7 +47,7 @@ services:
       replicas: 2
       resources:
         limits:
-          memory: 600M
+          memory: 550M
           cpus: 1
     depends_on: [nimbus, zookeeper]
 

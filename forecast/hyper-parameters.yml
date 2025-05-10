@@ -2,11 +2,11 @@ deepscale:
   env_id: StormDeepAutoscale-v0
   replay_memory_size: 100_000
   batch_size: 32
-  learning_rate: 0.1
+  learning_rate: 0.5
   discount_factor: 0.9
   network_sync_rate: 10
   epsilon_init: 1
-  epsilon_decay: 0.99
+  epsilon_decay: 0.85
   epsilon_min: 0.05
   graph_update_interval: 30
 
@@ -14,7 +14,7 @@ qscale:
   env_id: StormQAutoscale-v0
   learning_rate: 0.5
   discount_factor: 0.9
-  epsilon_init: 0.1
+  epsilon_init: 1
   epsilon_decay: 0.995
   epsilon_min: 0.05
   graph_update_interval: 30

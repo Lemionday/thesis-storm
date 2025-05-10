@@ -3,6 +3,9 @@ set export
 PROMETHEUS_URL := "http://10.0.0.1:9090"
 AUTOSCALER_URL := "http://10.0.0.1:8080"
 
+train-dqscale:
+	python3 -m dq_learning.agent --train
+
 evaluate-qscale:
 	python3 -m q_learning.agent
 

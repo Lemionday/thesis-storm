@@ -20,13 +20,13 @@ class Agent:
         self.MODEL_FILE = os.path.join(RUNS_DIR, f"{self.hyper_parameters_set}.pt")
         self.GRAPH_FILE = os.path.join(RUNS_DIR, f"{self.hyper_parameters_set}.png")
 
-        if self.is_training:
-            self.epsilon_hist = []
+        # if self.is_training:
+        self.epsilon_hist = []
 
-            # Track best reward
-            self.best_reward = -9999999
+        # Track best reward
+        self.best_reward = -9999999
 
-            self.current_time = datetime.now()
+        self.current_time = datetime.now()
 
     async def train(self):
         if self.is_training:
